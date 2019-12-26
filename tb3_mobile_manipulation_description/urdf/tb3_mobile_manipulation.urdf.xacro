@@ -1,0 +1,22 @@
+<?xml version="1.0" ?>
+<robot name="turtlebot3_mobile_manipulation" xmlns:xacro="http://ros.org/wiki/xacro">
+  <xacro:include filename="$(find tb3_mobile_manipulation_description)/urdf/common_properties.xacro"/>
+  <!-- <xacro:include filename="$(find tb3_mobile_manipulation_description)/urdf/tb3_mobile_manipulation.gazebo.xacro"/> -->
+    
+  <xacro:include filename="$(find tb3_mobile_manipulation_description)/urdf/tb3_mobile_manipulation.base.urdf.xacro" />
+  <xacro:include filename="$(find tb3_mobile_manipulation_description)/urdf/tb3_mobile_manipulation.manipulator.urdf.xacro" />
+
+  <link name="base_footprint"/>
+
+  <joint name="base_joint" type="fixed">
+    <parent link="base_footprint"/>
+    <child link="base_link" />
+    <origin xyz="0 0 0.010" rpy="0 0 0"/>
+  </joint>
+
+  <link name="base_link"/>
+
+  <xacro:tb3_base parent="base_link" />
+  <xacro:tb3_manipulator parent="base_link" />
+  
+</robot>

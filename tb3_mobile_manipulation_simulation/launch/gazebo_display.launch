@@ -1,0 +1,10 @@
+<launch>
+  <!-- <arg name="robot_name"     default="turtlebot3_mobile_manipulation"/> -->
+  <arg name="open_rviz"      default="true" />
+  <!-- <arg name="use_gui"        default="true" /> -->
+
+  <!-- Show in Rviz -->
+  <group if="$(arg open_rviz)">
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find tb3_mobile_manipulation_simulation)/rviz/tb3_mobile_manipulation.rviz"/>
+  </group>
+</launch>

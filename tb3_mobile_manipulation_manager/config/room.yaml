@@ -1,0 +1,29 @@
+room_1 :
+  name : toilet
+  object : ar_marker_0
+  target : ar_marker_4
+  x : [1.5, 0.6]
+  y : [1.5, 0.2]
+  
+room_2 :
+  name : computer_room
+  object : ar_marker_1
+  target : ar_marker_5
+  x : [1.5, 0.6]
+  y : [-1.5, -0.2]
+  
+room_3 :
+  name : kitchen
+  object : ar_marker_2
+  target : ar_marker_6
+  x : [-1.5, -0.2]
+  y : [-1.5, -0.2]
+  
+room_4 :
+  name : bed_room
+  object : ar_marker_3
+  target : ar_marker_7
+  x : [-1.5, -0.2]
+  y : [1.5, 0.2]
+  
+  

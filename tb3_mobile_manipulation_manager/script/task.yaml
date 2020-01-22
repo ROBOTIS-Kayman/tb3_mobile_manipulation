@@ -1,0 +1,21 @@
+# task_name : 
+  # type : string
+  
+find_object :
+  type : recognition
+  
+nav_to_object :
+  type : navigation
+  
+approach_to_object :
+  type : navigation2
+  
+move_arm_to_object :
+  type : manipulation
+  
+grasp_on_object : 
+  type : gripper
+  value : 1
+  
+move_arm_back :
+  type : manipulation

@@ -1,48 +1,21 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(tb3_mobile_manipulation_manager)
+project(tb3_mobile_manipulation_tools)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-add_compile_options(-std=c++11)
+# add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
-  open_manipulator_msgs
-  roslib
+  open_manipulator_control_gui
   roscpp
   rospy
-  tf
-  turtlebot3_msgs
-  geometry_msgs
-  std_msgs
-  cmake_modules
-  eigen_conversions
-  move_base_msgs
+  turtlebot3_teleop
 )
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
-
-set(ENV{PKG_CONFIG_PATH} "$ENV{PKG_CONFIG_PATH}:${CATKIN_DEVEL_PREFIX}/lib/pkgconfig")
-
-find_package(Eigen REQUIRED)
-
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(YAML_CPP REQUIRED yaml-cpp)
-find_path(YAML_CPP_INCLUDE_DIR
-  NAMES yaml_cpp.h
-  PATHS ${YAML_CPP_INCLUDE_DIRS}
-)
-find_library(YAML_CPP_LIBRARY
-  NAMES YAML_CPP
-  PATHS ${YAML_CPP_LIBRARY_DIRS}
-)
-link_directories(${YAML_CPP_LIBRARY_DIRS})
-
-if(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
-add_definitions(-DHAVE_NEW_YAMLCPP)
-endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 
 
 ## Uncomment this if the package has a setup.py. This macro ensures
@@ -98,7 +71,7 @@ endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 ## Generate added messages and services with any dependencies listed here
 # generate_messages(
 #   DEPENDENCIES
-#   open_manipulator_msgs#   turtlebot3_msgs
+#   std_msgs  # Or other packages containing msgs
 # )
 
 ################################################
@@ -131,9 +104,9 @@ endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-  INCLUDE_DIRS include
-#  LIBRARIES mobile_robot_manager
-CATKIN_DEPENDS roslib open_manipulator_msgs roscpp rospy turtlebot3_msgs geometry_msgs std_msgs move_base_msgs
+#  INCLUDE_DIRS include
+#  LIBRARIES tb3_mobile_manipulation_tools
+#  CATKIN_DEPENDS open_manipulator_control_gui roscpp rospy turtlebot3_teleop
 #  DEPENDS system_lib
 )
 
@@ -144,16 +117,13 @@ CATKIN_DEPENDS roslib open_manipulator_msgs roscpp rospy turtlebot3_msgs geometr
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-  include
+# include
   ${catkin_INCLUDE_DIRS}
-  ${YAML_CPP_LIBRARIES}
-  ${Boost_INCLUDE_DIRS}
-  ${Eigen_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
 # add_library(${PROJECT_NAME}
-#   src/${PROJECT_NAME}/mobile_robot_manager.cpp
+#   src/${PROJECT_NAME}/tb3_mobile_manipulation_tools.cpp
 # )
 
 ## Add cmake target dependencies of the library
@@ -164,11 +134,7 @@ include_directories(
 ## Declare a C++ executable
 ## With catkin_make all packages are built within a single CMake context
 ## The recommended prefix ensures that target names across packages don't collide
-add_executable(manager_node 
-  src/manager_node.cpp
-  src/task_manager.cpp
-  src/service.cpp
-)
+# add_executable(${PROJECT_NAME}_node src/tb3_mobile_manipulation_tools_node.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -178,14 +144,12 @@ add_executable(manager_node
 
 ## Add cmake target dependencies of the executable
 ## same as for the library above
-add_dependencies(manager_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+# add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 
 ## Specify libraries to link a library or executable target against
-target_link_libraries(manager_node
-  ${catkin_LIBRARIES}
-  ${YAML_CPP_LIBRARIES}
-  ${Boost_INCLUDE_DIRS}
-)
+# target_link_libraries(${PROJECT_NAME}_node
+#   ${catkin_LIBRARIES}
+# )
 
 #############
 ## Install ##
@@ -234,7 +198,7 @@ target_link_libraries(manager_node
 #############
 
 ## Add gtest based cpp test target and link libraries
-# catkin_add_gtest(${PROJECT_NAME}-test test/test_mobile_robot_manager.cpp)
+# catkin_add_gtest(${PROJECT_NAME}-test test/test_tb3_mobile_manipulation_tools.cpp)
 # if(TARGET ${PROJECT_NAME}-test)
 #   target_link_libraries(${PROJECT_NAME}-test ${PROJECT_NAME})
 # endif()

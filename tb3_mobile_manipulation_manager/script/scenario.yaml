@@ -1,0 +1,47 @@
+#scenario_name :  # start - scenario - finish
+#  timeout : 0.1 #sec
+#  task : 
+#  args : [0, 1, 2]
+#  next_scenario : find_object
+#  failed_scenario : standby
+#  retry_times : 0  #times, 0 : no retry
+
+start :
+ timeout : 1 #sec
+ task : none
+ args : [0]
+ next_scenario : find_object_1
+ failed_scenario : finish
+ retry_times : 0  #times, 0 : no retry
+  
+find_object_1 :
+ timeout : 10 #sec
+ task : find_object
+ args : [1]
+ next_scenario : nav_to_object_1
+ failed_scenario : standby
+ retry_times : 3  #times, 0 : no retry
+ 
+nav_to_object_1 :
+ timeout : 60 #sec
+ task : nav_to_object
+ args : [1]
+ next_scenario : approach_to_object_1
+ failed_scenario : standby
+ retry_times : 3  #times, 0 : no retry
+  
+approach_to_object_1 :
+ timeout : 10 #sec
+ task : approach_to_object
+ args : [1]
+ next_scenario : find_object
+ failed_scenario : standby
+ retry_times : 0  #times, 0 : no retry
+ 
+finish :
+ timeout : 1 #sec
+ task : none
+ args : [0]
+ next_scenario : none
+ failed_scenario : finish
+ retry_times : 0  #times, 0 : no retry

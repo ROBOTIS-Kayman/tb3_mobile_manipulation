@@ -35,9 +35,17 @@
 
   <!-- gripper_link -->
   <RefLink ref="gripper_link"/>
+  <gazebo reference="gripper_link">
+    <turnGravityOff>true</turnGravityOff>
+    <implicitSpringDamper>1</implicitSpringDamper>
+  </gazebo>
 
   <!-- gripper_link_sub -->
   <RefLink ref="gripper_link_sub"/>
+  <gazebo reference="gripper_link_sub">
+    <turnGravityOff>true</turnGravityOff>
+    <implicitSpringDamper>1</implicitSpringDamper>
+  </gazebo>
 
   <!-- end effector link -->
   <gazebo reference="end_effector_link">

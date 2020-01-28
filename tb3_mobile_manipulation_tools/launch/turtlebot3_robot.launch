@@ -1,0 +1,25 @@
+<launch>
+  <arg name="use_robot_name" default="tb3_manipulation"/>
+  <arg name="set_lidar_frame_id" default="base_scan"/>
+  
+  <group ns="$(arg use_robot_name)">
+    <param name="robot_description"
+      command="$(find xacro)/xacro --inorder '$(find tb3_mobile_manipulation_description)/urdf/tb3_mobile_manipulation.urdf.xacro'"/>
+
+    <include file="$(find turtlebot3_bringup)/launch/turtlebot3_core.launch">
+      <arg name="multi_robot_name" value="$(arg use_robot_name)"/>
+    </include>
+    
+    <include file="$(find turtlebot3_bringup)/launch/turtlebot3_lidar.launch">
+      <arg name="set_frame_id" value="$(arg use_robot_name)/$(arg set_lidar_frame_id)"/>
+      <param name="port" value="/dev/ttyUSB1" />
+    </include>
+
+    <node pkg="turtlebot3_bringup" type="turtlebot3_diagnostics" name="turtlebot3_diagnostics" output="screen"/>
+
+    <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher" output="screen">
+       <param name="publish_frequency" type="double" value="100.0" />
+       <param name="tf_prefix" value="$(arg use_robot_name)" />
+    </node>
+  </group>
+</launch>

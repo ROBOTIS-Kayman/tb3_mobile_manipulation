@@ -1,5 +1,5 @@
 <launch>
-  <arg name="robot_name"     default="turtlebot3_mobile_manipulation"/>
+  <arg name="robot_name"     default="turtlebot3_manipulation"/>
   <arg name="open_rviz"      default="true" />
   <arg name="use_gui"        default="true" />
 

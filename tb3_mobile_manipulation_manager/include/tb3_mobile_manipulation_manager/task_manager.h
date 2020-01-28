@@ -82,10 +82,10 @@ public:
   void approach_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
   void leave_target(const std::string &command);
   void leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
-  void nav_to_target(const std::string& target_name);
-  void nav_to_target(const geometry_msgs::Pose &target_pose);
-  void nav_to_target(const std::string& target_name, const std::string& real_target);
-  void nav_to_target(const geometry_msgs::Pose &target_pose, const std::string& real_target);
+  bool nav_to_target(const std::string& target_name);
+  bool nav_to_target(const geometry_msgs::Pose &target_pose);
+  bool nav_to_target(const std::string& target_name, const std::string& real_target);
+  bool nav_to_target(const geometry_msgs::Pose &target_pose, const std::string& real_target);
   void nav_to_target_thread(const geometry_msgs::Pose &target_pose, const std::string &real_target);
   void look_around(const std::string& target_name);
   void look_around_thread(int direction, const std::string& target_name);

@@ -69,7 +69,24 @@ void TaskManager::run_task_thread(Service* current_service)
   std::string object_name = current_service->get_object();
   std::string target_name = current_service->get_target();
 
-  nav_to_target(object_name);
+  bool result = nav_to_target(object_name);
+
+  if(result == false)
+  {
+    // go to start point
+    nav_to_target("nav_start", object_name);
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+    while(is_running_thread_)
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+
+    result = nav_to_target(object_name);
+    if(result == false)
+    {
+      ROS_ERROR("Failed to find target");
+      return;
+    }
+  }
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
   while(is_running_thread_)
@@ -100,7 +117,7 @@ void TaskManager::run_task_thread(Service* current_service)
 
   // nav to room
   geometry_msgs::Pose room_pose;
-  bool result = current_service->get_room_center(room_pose.position.x, room_pose.position.y);
+  result = current_service->get_room_center(room_pose.position.x, room_pose.position.y);
   if(result == true)
   {
     double yaw = atan2(room_pose.position.y, room_pose.position.x);
@@ -586,37 +603,14 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   publish_cmd_vel_msg(approach_msg);
 
   is_running_thread_ = false;
-
-  //  // leave target
-  //  geometry_msgs::Twist approach_msg;
-  //  approach_msg.linear.x = - 0.1;
-  //  approach_msg.linear.y = 0.0;
-  //  approach_msg.linear.z = 0.0;
-  //  approach_msg.angular.x = 0.0;
-  //  approach_msg.angular.y = 0.0;
-  //  approach_msg.angular.z = 0.0;
-  //  publish_cmd_vel_msg(approach_msg);
-
-  //  // wait to turn
-  //  int moving_time = distance * 1000 / 0.1;
-  //  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
-  //  ROS_WARN_STREAM("go back : " << distance << ", time(ms) : " << moving_time);
-
-  //  approach_msg.linear.x = 0.0;
-  //  approach_msg.linear.y = 0.0;
-  //  approach_msg.linear.z = 0.0;
-  //  approach_msg.angular.x = 0.0;
-  //  approach_msg.angular.y = 0.0;
-  //  approach_msg.angular.z = 0.0;
-  //  publish_cmd_vel_msg(approach_msg);
 }
 
-void TaskManager::nav_to_target(const std::string& target_name)
+bool TaskManager::nav_to_target(const std::string& target_name)
 {
-  nav_to_target(target_name, "");
+  return nav_to_target(target_name, "");
 }
 
-void TaskManager::nav_to_target(const std::string& target_name, const std::string& real_target)
+bool TaskManager::nav_to_target(const std::string& target_name, const std::string& real_target)
 {
   // go ar_marker
   geometry_msgs::Pose *target_pose = nullptr;
@@ -636,17 +630,8 @@ void TaskManager::nav_to_target(const std::string& target_name, const std::strin
         ROS_WARN("Failed to find correct ar marker, It will go to start point.");
 
         target_pose = nullptr;
-        //        target_pose->position.x = 0;
-        //        target_pose->position.y = 0;
-        //        target_pose->position.z = 0;
 
-        //        target_pose->orientation.w = 1;
-        //        target_pose->orientation.x = 0;
-        //        target_pose->orientation.y = 0;
-        //        target_pose->orientation.z = 0;
-
-        //        nav_to_target_thread(*target_pose);
-        return;
+        return false;
       }
 
       Eigen::Vector3d offset(0, 0, 0.35);
@@ -755,17 +740,21 @@ void TaskManager::nav_to_target(const std::string& target_name, const std::strin
     moving_thread_ = new boost::thread(boost::bind(&TaskManager::nav_to_target_thread, this, *target_pose, real_target));
     delete moving_thread_;
   }
+
+  return true;
 }
 
-void TaskManager::nav_to_target(const geometry_msgs::Pose &target_pose)
+bool TaskManager::nav_to_target(const geometry_msgs::Pose &target_pose)
 {
-  nav_to_target(target_pose, "");
+  return nav_to_target(target_pose, "");
 }
 
-void TaskManager::nav_to_target(const geometry_msgs::Pose &target_pose, const std::string& real_target)
+bool TaskManager::nav_to_target(const geometry_msgs::Pose &target_pose, const std::string& real_target)
 {
   moving_thread_ = new boost::thread(boost::bind(&TaskManager::nav_to_target_thread, this, target_pose, real_target));
   delete moving_thread_;
+
+  return true;
 }
 
 void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, const std::string& real_target)

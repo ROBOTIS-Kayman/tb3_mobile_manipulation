@@ -103,6 +103,7 @@ public:
   // ros node handle
 //  ros::NodeHandle nh_;
 //  ros::NodeHandle priv_nh_;
+  std::string robot_name_;
   bool is_running_thread_;
   boost::thread* moving_thread_;
   boost::thread* task_thread_;

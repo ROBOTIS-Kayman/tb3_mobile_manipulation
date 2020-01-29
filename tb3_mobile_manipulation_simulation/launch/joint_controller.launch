@@ -1,5 +1,5 @@
 <launch>
-  <arg name="use_robot_name"         default="tb3_mobile_manipulation"/>
+  <arg name="use_robot_name"         default="tb3_manipulation"/>
 
   <!-- Load joint controller configurations from YAML file to parameter server -->
   <rosparam file="$(find tb3_mobile_manipulation_simulation)/config/joint_controller.yaml" command="load"/>

@@ -24,6 +24,8 @@ TaskManager::TaskManager()
   : is_running_thread_(false),
     navigation_status_(actionlib_msgs::GoalStatus::PENDING)
 {
+  robot_name_ = "/tb3_manipulation";
+
   marker_name_list_.push_back("ar_marker_0");
   marker_name_list_.push_back("ar_marker_1");
   marker_name_list_.push_back("ar_marker_2");
@@ -188,12 +190,12 @@ void TaskManager::callback_thread()
   // subscriber & publisher
   ros::NodeHandle nh;
   //  ros::NodeHandle priv_nh_;
-  goal_nav_pub_ = nh.advertise<geometry_msgs::PoseStamped>("/tb3_mobile_manipulation/move_base_simple/goal", 0);
-  cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>("/tb3_mobile_manipulation/cmd_vel", 0);
-  debug_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>("/tb3_mobile_manipulation/marker", 0);
+  goal_nav_pub_ = nh.advertise<geometry_msgs::PoseStamped>(robot_name_ + "/move_base_simple/goal", 0);
+  cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>(robot_name_ + "/cmd_vel", 0);
+  debug_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>(robot_name_ + "/marker", 0);
 
-  cmd_sub_ = nh.subscribe("/tb3_mobile_manipulation/command", 1, &TaskManager::command_msg_callback, this);
-  navigation_result_sub_ = nh.subscribe("/tb3_mobile_manipulation/move_base/status", 1, &TaskManager::navigation_result_callback, this);
+  cmd_sub_ = nh.subscribe(robot_name_ + "/command", 1, &TaskManager::command_msg_callback, this);
+  navigation_result_sub_ = nh.subscribe(robot_name_ + "/move_base/status", 1, &TaskManager::navigation_result_callback, this);
 
   tf_listener_.reset( new tf::TransformListener());
 

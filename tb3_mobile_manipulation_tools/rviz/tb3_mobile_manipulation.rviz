@@ -70,47 +70,47 @@ Visualization Manager:
           Value: true
         map:
           Value: true
-        tb3_mobile_manipulation/base_footprint:
+        tb3_manipulation/base_footprint:
           Value: true
-        tb3_mobile_manipulation/base_link:
+        tb3_manipulation/base_link:
           Value: true
-        tb3_mobile_manipulation/base_scan:
+        tb3_manipulation/base_scan:
           Value: false
-        tb3_mobile_manipulation/camera_link:
+        tb3_manipulation/camera_link:
           Value: false
-        tb3_mobile_manipulation/camera_rgb_frame:
+        tb3_manipulation/camera_rgb_frame:
           Value: false
-        tb3_mobile_manipulation/camera_rgb_optical_frame:
+        tb3_manipulation/camera_rgb_optical_frame:
           Value: false
-        tb3_mobile_manipulation/caster_back_left_link:
+        tb3_manipulation/caster_back_left_link:
           Value: false
-        tb3_mobile_manipulation/caster_back_right_link:
+        tb3_manipulation/caster_back_right_link:
           Value: false
-        tb3_mobile_manipulation/end_effector_link:
+        tb3_manipulation/end_effector_link:
           Value: false
-        tb3_mobile_manipulation/gripper_link:
+        tb3_manipulation/gripper_link:
           Value: false
-        tb3_mobile_manipulation/gripper_link_sub:
+        tb3_manipulation/gripper_link_sub:
           Value: false
-        tb3_mobile_manipulation/imu_link:
+        tb3_manipulation/imu_link:
           Value: false
-        tb3_mobile_manipulation/link1:
+        tb3_manipulation/link1:
           Value: false
-        tb3_mobile_manipulation/link2:
+        tb3_manipulation/link2:
           Value: false
-        tb3_mobile_manipulation/link3:
+        tb3_manipulation/link3:
           Value: false
-        tb3_mobile_manipulation/link4:
+        tb3_manipulation/link4:
           Value: false
-        tb3_mobile_manipulation/link5:
+        tb3_manipulation/link5:
           Value: false
-        tb3_mobile_manipulation/odom:
+        tb3_manipulation/odom:
           Value: false
-        tb3_mobile_manipulation/tb3_base_link:
+        tb3_manipulation/tb3_base_link:
           Value: false
-        tb3_mobile_manipulation/wheel_left_link:
+        tb3_manipulation/wheel_left_link:
           Value: false
-        tb3_mobile_manipulation/wheel_right_link:
+        tb3_manipulation/wheel_right_link:
           Value: false
       Marker Scale: 0.200000003
       Name: TF
@@ -119,14 +119,14 @@ Visualization Manager:
       Show Names: true
       Tree:
         map:
-          tb3_mobile_manipulation/odom:
-            tb3_mobile_manipulation/base_footprint:
-              tb3_mobile_manipulation/base_link:
-                tb3_mobile_manipulation/base_scan:
+          tb3_manipulation/odom:
+            tb3_manipulation/base_footprint:
+              tb3_manipulation/base_link:
+                tb3_manipulation/base_scan:
                   {}
-                tb3_mobile_manipulation/camera_link:
-                  tb3_mobile_manipulation/camera_rgb_frame:
-                    tb3_mobile_manipulation/camera_rgb_optical_frame:
+                tb3_manipulation/camera_link:
+                  tb3_manipulation/camera_rgb_frame:
+                    tb3_manipulation/camera_rgb_optical_frame:
                       ar_marker_0:
                         {}
                       ar_marker_1:
@@ -135,28 +135,28 @@ Visualization Manager:
                         {}
                       ar_marker_3:
                         {}
-                tb3_mobile_manipulation/caster_back_left_link:
+                tb3_manipulation/caster_back_left_link:
                   {}
-                tb3_mobile_manipulation/caster_back_right_link:
+                tb3_manipulation/caster_back_right_link:
                   {}
-                tb3_mobile_manipulation/imu_link:
+                tb3_manipulation/imu_link:
                   {}
-                tb3_mobile_manipulation/link1:
-                  tb3_mobile_manipulation/link2:
-                    tb3_mobile_manipulation/link3:
-                      tb3_mobile_manipulation/link4:
-                        tb3_mobile_manipulation/link5:
-                          tb3_mobile_manipulation/end_effector_link:
+                tb3_manipulation/link1:
+                  tb3_manipulation/link2:
+                    tb3_manipulation/link3:
+                      tb3_manipulation/link4:
+                        tb3_manipulation/link5:
+                          tb3_manipulation/end_effector_link:
                             {}
-                          tb3_mobile_manipulation/gripper_link:
+                          tb3_manipulation/gripper_link:
                             {}
-                          tb3_mobile_manipulation/gripper_link_sub:
+                          tb3_manipulation/gripper_link_sub:
                             {}
-                tb3_mobile_manipulation/tb3_base_link:
+                tb3_manipulation/tb3_base_link:
                   {}
-                tb3_mobile_manipulation/wheel_left_link:
+                tb3_manipulation/wheel_left_link:
                   {}
-                tb3_mobile_manipulation/wheel_right_link:
+                tb3_manipulation/wheel_right_link:
                   {}
       Update Interval: 0
       Value: true
@@ -266,8 +266,8 @@ Visualization Manager:
           Show Trail: false
           Value: true
       Name: RobotModel
-      Robot Description: /tb3_mobile_manipulation/robot_description
-      TF Prefix: tb3_mobile_manipulation
+      Robot Description: /tb3_manipulation/robot_description
+      TF Prefix: tb3_manipulation
       Update Interval: 0
       Value: true
       Visual Enabled: true
@@ -296,7 +296,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /tb3_mobile_manipulation/scan
+      Topic: /tb3_manipulation/scan
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -304,7 +304,7 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: false
       Image Rendering: background and overlay
-      Image Topic: /tb3_mobile_manipulation/camera/rgb/image_raw
+      Image Topic: /tb3_manipulation/camera/rgb/image_raw
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
@@ -358,7 +358,7 @@ Visualization Manager:
       Size (Pixels): 3
       Size (m): 0.00999999978
       Style: Flat Squares
-      Topic: /tb3_mobile_manipulation/camera/depth/points
+      Topic: /tb3_manipulation/camera/depth/points
       Unreliable: false
       Use Fixed Frame: true
       Use rainbow: true
@@ -369,7 +369,7 @@ Visualization Manager:
       Draw Behind: false
       Enabled: true
       Name: Map
-      Topic: /tb3_mobile_manipulation/map
+      Topic: /tb3_manipulation/map
       Unreliable: false
       Use Timestamp: false
       Value: true
@@ -393,7 +393,7 @@ Visualization Manager:
       Radius: 0.0299999993
       Shaft Diameter: 0.100000001
       Shaft Length: 0.100000001
-      Topic: /tb3_mobile_manipulation/move_base/NavfnROS/plan
+      Topic: /tb3_manipulation/move_base/NavfnROS/plan
       Unreliable: false
       Value: true
     - Class: rviz/Group
@@ -404,7 +404,7 @@ Visualization Manager:
           Draw Behind: true
           Enabled: true
           Name: Costmap
-          Topic: /tb3_mobile_manipulation/move_base/global_costmap/costmap
+          Topic: /tb3_manipulation/move_base/global_costmap/costmap
           Unreliable: false
           Use Timestamp: false
           Value: true
@@ -428,7 +428,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /tb3_mobile_manipulation/move_base/DWAPlannerROS/global_plan
+          Topic: /tb3_manipulation/move_base/DWAPlannerROS/global_plan
           Unreliable: false
           Value: true
       Enabled: true
@@ -440,7 +440,7 @@ Visualization Manager:
           Color: 0; 0; 0
           Enabled: true
           Name: Polygon
-          Topic: /tb3_mobile_manipulation/move_base/local_costmap/footprint
+          Topic: /tb3_manipulation/move_base/local_costmap/footprint
           Unreliable: false
           Value: true
         - Alpha: 0.699999988
@@ -449,7 +449,7 @@ Visualization Manager:
           Draw Behind: false
           Enabled: true
           Name: Costmap
-          Topic: /tb3_mobile_manipulation/move_base/local_costmap/costmap
+          Topic: /tb3_manipulation/move_base/local_costmap/costmap
           Unreliable: false
           Use Timestamp: false
           Value: true
@@ -473,7 +473,7 @@ Visualization Manager:
           Radius: 0.0299999993
           Shaft Diameter: 0.100000001
           Shaft Length: 0.100000001
-          Topic: /tb3_mobile_manipulation/move_base/DWAPlannerROS/local_plan
+          Topic: /tb3_manipulation/move_base/DWAPlannerROS/local_plan
           Unreliable: false
           Value: true
       Enabled: true
@@ -491,7 +491,7 @@ Visualization Manager:
       Shaft Length: 0.230000004
       Shaft Radius: 0.00999999978
       Shape: Arrow (Flat)
-      Topic: /tb3_mobile_manipulation/particlecloud
+      Topic: /tb3_manipulation/particlecloud
       Unreliable: false
       Value: true
     - Alpha: 1
@@ -511,7 +511,7 @@ Visualization Manager:
       Value: true
     - Class: rviz/MarkerArray
       Enabled: true
-      Marker Topic: /tb3_mobile_manipulation/marker
+      Marker Topic: /tb3_manipulation/marker
       Name: MarkerArray
       Namespaces:
         {}

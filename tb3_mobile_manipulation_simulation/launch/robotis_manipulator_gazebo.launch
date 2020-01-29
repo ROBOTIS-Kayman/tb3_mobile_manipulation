@@ -1,5 +1,5 @@
 ﻿<launch>
-  <arg name="use_robot_name"         default="tb3_mobile_manipulation"/>
+  <arg name="use_robot_name"         default="tb3_manipulation"/>
 
   <arg name="dynamixel_usb_port"     default="/dev/ttyUSB0"/>
   <arg name="dynamixel_baud_rate"    default="1000000"/>

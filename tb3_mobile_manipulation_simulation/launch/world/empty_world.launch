@@ -1,5 +1,5 @@
 <launch>
-  <arg name="use_robot_name" default="tb3_mobile_manipulation"/>
+  <arg name="use_robot_name" default="tb3_manipulation"/>
 
   <!-- These are the arguments you can pass this launch file, for example paused:=true -->
   <arg name="paused" default="true"/>

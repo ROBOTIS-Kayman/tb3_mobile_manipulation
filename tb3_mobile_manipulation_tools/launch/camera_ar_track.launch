@@ -4,7 +4,6 @@
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="use_camera" default="true" />
-  <arg name="sim" default="false" />
                 
   <arg name="cam_image_topic" default="/$(arg use_robot_name)/camera/color/image_raw" />
   <arg name="cam_info_topic" default="/$(arg use_robot_name)/camera/color/camera_info" />
@@ -20,10 +19,10 @@
     <param name="max_new_marker_error" value="$(arg max_new_marker_error)"/>
     <param name="max_track_error" value="$(arg max_track_error)"/>
     <param name="output_frame" value="$(arg output_frame)"/> 
-    <remap unless="$(arg sim)" from="camera_image" to="$(arg cam_image_topic)"/>
-    <remap unless="$(arg sim)" from="camera_info" to="$(arg cam_info_topic)"/>
-    <remap if="$(arg sim)" from="camera_image" to="$(arg sim_cam_image_topic)"/>
-    <remap if="$(arg sim)" from="camera_info" to="$(arg sim_cam_info_topic)"/>
+    <remap if="$(arg use_camera)" from="camera_image" to="$(arg cam_image_topic)"/>
+    <remap if="$(arg use_camera)" from="camera_info" to="$(arg cam_info_topic)"/>
+    <remap unless="$(arg use_camera)" from="camera_image" to="$(arg sim_cam_image_topic)"/>
+    <remap unless="$(arg use_camera)" from="camera_info" to="$(arg sim_cam_info_topic)"/>
   </node>
   
   <!-- realsense -->

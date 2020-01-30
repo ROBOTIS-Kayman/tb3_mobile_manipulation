@@ -96,16 +96,22 @@ void TaskManager::run_task_thread(Service* current_service)
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
 
+  // wait for detecting ar marker
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
   for(int ix = 0; ix < approach_repeat; ix++)
   {
     // approach object
-    approach_target(object_name);
+    approach_target(object_name, approach_repeat, ix + 1);
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
     while(is_running_thread_)
       boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
+    if(ix == (approach_repeat - 1))
+      break;
 
     // leave
     leave_target("leave_back");
@@ -116,6 +122,18 @@ void TaskManager::run_task_thread(Service* current_service)
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
   }
+
+  // manipulation : pick
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 30));
+
+  // leave
+  leave_target("leave_back");
+
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+  while(is_running_thread_)
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
 
   // nav to room
   geometry_msgs::Pose room_pose;
@@ -157,14 +175,39 @@ void TaskManager::run_task_thread(Service* current_service)
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
 
-  // approach target
-  approach_target(target_name);
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
+  // wait for detecting ar marker
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
+  // approach target
+  approach_repeat = 2;
+  for(int ix = 0; ix < approach_repeat; ix++)
+  {
+    // approach object
+    approach_target(target_name, approach_repeat, ix + 1);
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+    while(is_running_thread_)
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
+    if(ix == (approach_repeat - 1))
+      break;
+
+    // leave
+    leave_target("leave_back");
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+    while(is_running_thread_)
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  }
+
+
+  // manipulation : place
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 30));
+
 
   // leave
   leave_target("leave_back");
@@ -317,7 +360,12 @@ void TaskManager::load_task_data(const std::string& path)
   }
 }
 
-void TaskManager::approach_target(const std::string& target_name)
+void TaskManager::approach_target(const std::string &target_name)
+{
+  approach_target(target_name, 1, 1);
+}
+
+void TaskManager::approach_target(const std::string& target_name, int total_count, int present_count)
 {
   // approach ar_marker
   std::size_t pos = target_name.find("ar_marker");
@@ -329,7 +377,7 @@ void TaskManager::approach_target(const std::string& target_name)
     {
       geometry_msgs::Pose target_pose, present_pose;
 
-      std::string base_frame_id = "tb3_mobile_manipulation/base_footprint";
+      std::string base_frame_id = robot_name_ + "/base_footprint";
 
       bool result = get_target_pose(marker_name, target_pose) &&
           get_target_pose(base_frame_id, present_pose);
@@ -339,7 +387,9 @@ void TaskManager::approach_target(const std::string& target_name)
         return;
       }
 
-      Eigen::Vector3d offset(0, 0, 0.10);
+      double final_offset = 0.1 + (total_count - present_count) * 0.05;
+
+      Eigen::Vector3d offset(0, 0, final_offset);
 
       Eigen::Quaterniond target_orientation;
       Eigen::Vector3d object_position, target_position;

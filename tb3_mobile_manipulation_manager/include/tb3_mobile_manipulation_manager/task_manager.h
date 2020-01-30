@@ -79,6 +79,7 @@ public:
   void load_task_data(const std::string& path);
 
   void approach_target(const std::string &target_name);
+  void approach_target(const std::string &target_name, int total_count, int present_count);
   void approach_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
   void leave_target(const std::string &command);
   void leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);

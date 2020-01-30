@@ -1,7 +1,7 @@
 room_1 :
   name : toilet
   object : ar_marker_0
-  target : ar_marker_4
+  target : ar_marker_5
   x : [1.5, 0.6]
   y : [1.5, 0.2]
   
@@ -22,7 +22,7 @@ room_3 :
 room_4 :
   name : bed_room
   object : ar_marker_3
-  target : ar_marker_7
+  target : ar_marker_6
   x : [-1.5, -0.2]
   y : [1.5, 0.2]
   

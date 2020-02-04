@@ -39,11 +39,19 @@ public:
   std::string get_name() { return name_; }
   void set_object(const std::string& object_marker);
   void set_target(const std::string& target_marker);
+  void set_object_position(const std::vector<double>& position);
+  void set_object_position(double pos_x, double pos_y, double pos_z);
+  void set_target_position(const std::vector<double>& position);
+  void set_target_position(double pos_x, double pos_y, double pos_z);
   void set_room_x(double x_max, double x_min);
   void set_room_y(double y_max, double y_min);
   std::string get_object() {return object_marker_;}
   std::string get_target() {return target_marker_;}
   bool get_room_center(double& x, double&y);
+  bool get_object_position(double& pos_x, double& pos_y, double& pos_z);
+  bool get_object_position(std::vector<double>& position);
+  bool get_target_position(double& pos_x, double& pos_y, double& pos_z);
+  bool get_target_position(std::vector<double>& position);
 
   // variable
 
@@ -59,6 +67,8 @@ protected:
   std::string name_;
   std::string object_marker_;
   std::string target_marker_;
+  std::vector<double> object_position_;
+  std::vector<double> target_position_;
   std::vector<double> room_x_;
   std::vector<double> room_y_;
 

@@ -21,7 +21,12 @@
 namespace tb3_mobile_manipulation
 {
 TaskManager::TaskManager()
-  : is_running_thread_(false),
+  : is_running_sub_task_thread_(false),
+    is_stop_(false),
+    is_pause_(false),
+    interval_sleep_ms_(500),
+    linear_vel_(0.05),
+    angular_vel_(0.1),
     navigation_status_(actionlib_msgs::GoalStatus::PENDING)
 {
   robot_name_ = "/tb3_manipulation";
@@ -40,6 +45,66 @@ TaskManager::TaskManager()
   ros::NodeHandle p_nh("~");
   std::string task_data_path = p_nh.param<std::string>("task_data_path", ros::package::getPath(ROS_PACKAGE_NAME) + "/config/room.yaml");
   load_task_data(task_data_path);
+  std::string config_data_path = p_nh.param<std::string>("config_data_path", ros::package::getPath(ROS_PACKAGE_NAME) + "/config/config.yaml");
+  load_config(config_data_path);
+}
+
+
+// ========================================
+// ==========      Task
+// ========================================
+void TaskManager::control_task(COMMAND command)
+{
+  switch(command)
+  {
+  case STOP:
+    if(is_running_task_thread_ == true)
+      is_stop_ = true;
+    break;
+
+  case PAUSE:
+    if(is_running_task_thread_ == true && is_pause_ == false)
+    {
+      ROS_INFO("The current task will be paused.");
+      is_pause_ = true;
+    }
+    break;
+
+  case RESUME:
+    if(is_running_task_thread_ == true && is_pause_ == true)
+    {
+      ROS_INFO("The current task will be resumed.");
+      is_pause_ = false;
+    }
+    break;
+
+  case READY:
+    if(is_running_task_thread_ == false)
+    {
+      ready_task();
+    }
+    break;
+
+  default:
+    return;
+  }
+}
+
+void TaskManager::ready_task()
+{
+  ROS_INFO("Ready to run the task");
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::ready_task_thread, this));
+  delete moving_thread_;
+}
+
+void TaskManager::ready_task_thread()
+{
+  // reset odom
+  publish_reset_turtlebot();
+
+  // move arm to init pose
+  move_arm_joint("home_with_object");
 }
 
 bool TaskManager::run_task(const std::string& task_name)
@@ -49,6 +114,12 @@ bool TaskManager::run_task(const std::string& task_name)
   if(it == room_service_list_.end())
   {
     ROS_ERROR_STREAM("No service for " << task_name);
+    return false;
+  }
+
+  if(is_running_task_thread_ == true)
+  {
+    ROS_ERROR("Already running the task!");
     return false;
   }
 
@@ -62,8 +133,11 @@ bool TaskManager::run_task(const std::string& task_name)
 
 void TaskManager::run_task_thread(Service* current_service)
 {
+  is_running_task_thread_ = true;
+
   int sleep_ms = 100;
   int approach_repeat = 3;
+  bool continue_result = true;
 
   ROS_WARN_STREAM("Start Task : " << current_service->get_name());
 
@@ -78,23 +152,29 @@ void TaskManager::run_task_thread(Service* current_service)
     // go to start point
     nav_to_target("nav_start", object_name);
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+    continue_result = sleep_for(sleep_ms, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
 
     result = nav_to_target(object_name);
     if(result == false)
     {
       ROS_ERROR("Failed to find target");
+
+      on_stop_task();
       return;
     }
   }
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // wait for detecting ar marker
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
@@ -104,11 +184,12 @@ void TaskManager::run_task_thread(Service* current_service)
     // approach object
     approach_target(object_name, approach_repeat, ix + 1);
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
 
     if(ix == (approach_repeat - 1))
       break;
@@ -116,24 +197,53 @@ void TaskManager::run_task_thread(Service* current_service)
     // leave
     leave_target("leave_back");
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
   }
 
   // manipulation : pick
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 30));
+  geometry_msgs::Point object_position;
+  current_service->get_object_position(object_position.x, object_position.y, object_position.z);
+  move_arm_task(object_position);
+
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
+  // manipulation :: close gripper
+  close_gripper();
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
+  // manipulation : move to init pose
+  move_arm_joint("home_with_object");
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // leave
   leave_target("leave_back");
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // nav to room
   geometry_msgs::Pose room_pose;
@@ -150,30 +260,33 @@ void TaskManager::run_task_thread(Service* current_service)
     nav_to_target(room_pose, target_name);
 
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
   }
 
   // find target
   look_around(target_name);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // nav to target
   nav_to_target(target_name);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // wait for detecting ar marker
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
@@ -185,11 +298,12 @@ void TaskManager::run_task_thread(Service* current_service)
     // approach object
     approach_target(target_name, approach_repeat, ix + 1);
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
 
     if(ix == (approach_repeat - 1))
       break;
@@ -197,35 +311,97 @@ void TaskManager::run_task_thread(Service* current_service)
     // leave
     leave_target("leave_back");
 
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    while(is_running_thread_)
-      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
   }
 
 
   // manipulation : place
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 30));
+  geometry_msgs::Point target_position;
+  current_service->get_target_position(target_position.x, target_position.y, target_position.z);
+  move_arm_task(target_position);
+
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
+  // manipulation :: close gripper
+  open_gripper();
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
+  // manipulation : move to init pose
+  move_arm_joint("home_with_object");
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
 
   // leave
   leave_target("leave_back");
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // nav to start position
   nav_to_target("nav_start");
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-  while(is_running_thread_)
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+  continue_result = sleep_for(sleep_ms, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   ROS_INFO_STREAM("Task " << current_service->get_name() << " is done.");
+
+  is_running_task_thread_ = false;
+}
+
+// ========================================
+// ==========     Thread
+// ========================================
+void TaskManager::on_stop_task()
+{
+  ROS_WARN("Running task is stopped.");
+  is_pause_ = false;
+  is_stop_ = false;
+  //  moving_thread_->interrupt();
+  is_running_task_thread_ = false;
+}
+
+bool TaskManager::sleep_for(int sleep_interval, int after_interval, bool &running_condition, bool& pause_condition, bool& termination_condition)
+{
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
+
+  while(running_condition || pause_condition)
+  {
+    if(termination_condition == true)
+      return false;
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
+  }
+
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(after_interval));
+  return true;
 }
 
 void TaskManager::callback_thread()
@@ -236,9 +412,17 @@ void TaskManager::callback_thread()
   goal_nav_pub_ = nh.advertise<geometry_msgs::PoseStamped>(robot_name_ + "/move_base_simple/goal", 0);
   cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>(robot_name_ + "/cmd_vel", 0);
   debug_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>(robot_name_ + "/marker", 0);
+  reset_turtlebot_pub_ = nh.advertise<std_msgs::Empty>(robot_name_ + "/reset", 0);
 
   cmd_sub_ = nh.subscribe(robot_name_ + "/command", 1, &TaskManager::command_msg_callback, this);
   navigation_result_sub_ = nh.subscribe(robot_name_ + "/move_base/status", 1, &TaskManager::navigation_result_callback, this);
+
+  // service client
+  goal_joint_space_path_client_ = nh.serviceClient<open_manipulator_msgs::SetJointPosition>(robot_name_ + "/goal_joint_space_path");
+  goal_task_space_path_position_only_client_ = nh.serviceClient<open_manipulator_msgs::SetKinematicsPose>(robot_name_ + "/goal_task_space_path_position_only");
+  goal_tool_control_client_ = nh.serviceClient<open_manipulator_msgs::SetJointPosition>(robot_name_ + "/goal_tool_control");
+  set_actuator_state_client_ = nh.serviceClient<open_manipulator_msgs::SetActuatorState>(robot_name_ + "/set_actuator_state");
+
 
   tf_listener_.reset( new tf::TransformListener());
 
@@ -252,6 +436,10 @@ void TaskManager::callback_thread()
   }
 }
 
+
+// ========================================
+// ==========      Common
+// ========================================
 void TaskManager::get_quaternion(double roll, double pitch, double yaw, geometry_msgs::Quaternion& quaternion)
 {
   double cy = cos(yaw * 0.5);
@@ -326,7 +514,6 @@ void TaskManager::load_task_data(const std::string& path)
 
     room_service_list_.clear();
 
-    YAML::Node id_sub_node = doc["id_joint"];
     for (YAML::iterator yaml_it = doc.begin(); yaml_it != doc.end(); ++yaml_it)
     {
       std::string task_name;
@@ -335,8 +522,15 @@ void TaskManager::load_task_data(const std::string& path)
 
       YAML::Node sub_node = yaml_it->second;
       std::string name = sub_node["name"].as<std::string>();
-      std::string object_name = sub_node["object"].as<std::string>();
-      std::string target_name = sub_node["target"].as<std::string>();
+
+      YAML::Node object_node = sub_node["object"];
+      std::string object_name = object_node["marker"].as<std::string>();
+      std::vector<double> object_position = object_node["position"].as< std::vector<double> >();
+
+      YAML::Node target_node = sub_node["target"];
+      std::string target_name = target_node["marker"].as<std::string>();
+      std::vector<double> target_position = target_node["position"].as< std::vector<double> >();
+
       std::vector<double> room_x = sub_node["x"].as< std::vector<double> >();
       std::vector<double> room_y = sub_node["y"].as< std::vector<double> >();
 
@@ -345,7 +539,9 @@ void TaskManager::load_task_data(const std::string& path)
 
       Service *service = new Service(task_name);
       service->set_object(object_name);
+      service->set_object_position(object_position);
       service->set_target(target_name);
+      service->set_target_position(target_position);
       service->set_room_x(room_x.at(0), room_x.at(1));
       service->set_room_y(room_y.at(0), room_y.at(1));
 
@@ -360,6 +556,57 @@ void TaskManager::load_task_data(const std::string& path)
   }
 }
 
+void TaskManager::load_config(const std::string &path)
+{
+  YAML::Node doc;
+  try
+  {
+    doc = YAML::LoadFile(path.c_str());
+
+    // arm pose
+    YAML::Node arm_pose_node = doc["arm_pose"];
+    arm_pose_list_.clear();
+
+    for (YAML::iterator yaml_it = arm_pose_node.begin(); yaml_it != arm_pose_node.end(); ++yaml_it)
+    {
+      std::string pose_name;
+
+      pose_name = yaml_it->first.as<std::string>();
+
+      YAML::Node sub_node = yaml_it->second;
+
+      std::map<std::string, double> pose;
+
+      for (YAML::iterator sub_it = sub_node.begin(); sub_it != sub_node.end(); ++sub_it)
+      {
+        std::string joint_name = sub_it->first.as<std::string>();
+        double joint_angle = sub_it->second.as<double>() * M_PI / 180.0;
+
+        pose[joint_name] = joint_angle;
+      }
+
+      arm_pose_list_[pose_name] = pose;
+    }
+
+    // approach
+    YAML::Node approach_node = doc["approach"];
+    linear_vel_ = approach_node["linear_vel"].as<double>();
+    angular_vel_ = approach_node["angular_vel"].as<double>();
+    interval_sleep_ms_ = approach_node["interval_sleep_ms"].as<int>();
+
+  }
+  catch (const std::exception& e)
+  {
+    ROS_ERROR_STREAM("Fail to load config data." << e.what());
+    arm_pose_list_.clear();
+    return;
+  }
+}
+
+
+// ========================================
+// ==========     Mobile
+// ========================================
 void TaskManager::approach_target(const std::string &target_name)
 {
   approach_target(target_name, 1, 1);
@@ -432,17 +679,14 @@ void TaskManager::approach_target(const std::string& target_name, int total_coun
 
 void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_pose, const geometry_msgs::Pose2D& target_pose)
 {
-  is_running_thread_ = true;
+  is_running_sub_task_thread_ = true;
   int additional_sleep_ms = 0;
-  int interval_sleep_ms = 1000;
 
   ROS_WARN_STREAM("present : " << present_pose.x << ", " << present_pose.y << " | " << present_pose.theta);
   ROS_WARN_STREAM("target : " << target_pose.x << ", " << target_pose.y << " | " << target_pose.theta);
 
   // LINEAR_MAX_VELOCITY = (WHEEL_RADIUS * 2 * M_PI * WAFFLE / 60)       #m/s  (WHEEL_RADIUS = 0.033, BURGER : 61[rpm], WAFFLE : 77[rpm])
   // ANGULAR_MAX_VELOCITY = (MAX_LINEAR_VELOCITY / WAFFLE_TURNING_RADIUS)   #rad/s (WAFFLE_TURNING_RADIUS = 0.1435)
-  double linear_vel = 0.05; //0.1;
-  double angular_vel = 0.1; //0.1;
 
   double diff_x = target_pose.x - present_pose.x;
   double diff_y = target_pose.y - present_pose.y;
@@ -460,7 +704,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_1 > 0) ? angular_vel : - angular_vel;
+  approach_msg.angular.z = (yaw_1 > 0) ? angular_vel_ : - angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -476,10 +720,10 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms_));
 
   // go to target
-  approach_msg.linear.x = linear_vel;
+  approach_msg.linear.x = linear_vel_;
   approach_msg.linear.y = 0.0;
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
@@ -500,7 +744,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms_));
 
   // turn to target theta
   approach_msg.linear.x = 0.0;
@@ -508,7 +752,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_2 > 0) ? angular_vel : - angular_vel;
+  approach_msg.angular.z = (yaw_2 > 0) ? angular_vel_ : - angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -533,7 +777,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   //  get_euler_angle(target.orientation, r, p, y);
   //  ROS_WARN_STREAM("target from TF : " << target.position.x << ", " << target.position.y << ", theta : " << y);
 
-  is_running_thread_ = false;
+  is_running_sub_task_thread_ = false;
 }
 
 void TaskManager::leave_target(const std::string& command)
@@ -569,7 +813,7 @@ void TaskManager::leave_target(const std::string& command)
 
 void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose)
 {
-  is_running_thread_ = true;
+  is_running_sub_task_thread_ = true;
 
   int interval_sleep_ms = 500;
 
@@ -654,7 +898,7 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  is_running_thread_ = false;
+  is_running_sub_task_thread_ = false;
 }
 
 bool TaskManager::nav_to_target(const std::string& target_name)
@@ -811,7 +1055,7 @@ bool TaskManager::nav_to_target(const geometry_msgs::Pose &target_pose, const st
 
 void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, const std::string& real_target)
 {
-  is_running_thread_ = true;
+  is_running_sub_task_thread_ = true;
 
   int sleep_ms = 100;
 
@@ -845,7 +1089,7 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
 
   ROS_INFO_STREAM("Navigation is finished. : " << navigation_status_);
 
-  is_running_thread_ = false;
+  is_running_sub_task_thread_ = false;
 }
 
 void TaskManager::look_around(const std::string& target_name)
@@ -871,7 +1115,7 @@ void TaskManager::look_around_thread(int direction, const std::string& target_na
     return;
   }
 
-  is_running_thread_ = true;
+  is_running_sub_task_thread_ = true;
 
   double linear_vel = 0.0;
   double angular_vel = 0.5;
@@ -912,7 +1156,157 @@ void TaskManager::look_around_thread(int direction, const std::string& target_na
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  is_running_thread_ = false;
+  is_running_sub_task_thread_ = false;
+}
+
+void TaskManager::compensation_localization()
+{
+
+}
+
+// ========================================
+// ==========     Manipulation
+// ========================================
+bool TaskManager::set_actuator_state(bool state)
+{
+  open_manipulator_msgs::SetActuatorState srv;
+  srv.request.set_actuator_state = state;
+
+  if(set_actuator_state_client_.call(srv))
+  {
+    return srv.response.is_planned;
+  }
+  return false;
+}
+
+void TaskManager::move_arm_joint(const std::string& target_pose)
+{
+  auto find_it = arm_pose_list_.find(target_pose);
+
+  if(find_it != arm_pose_list_.end())
+  {
+    double path_time = 2.0;
+    std::vector<std::string> joint_name;
+    std::vector<double> joint_angle;
+
+    for(auto element : find_it->second)
+    {
+      joint_name.push_back(element.first);
+      joint_angle.push_back(element.second);
+      std::cout << "joint : " << element.first << ", angle : " << element.second << std::endl;
+    }
+
+    if((joint_name.size() != 0) && (joint_name.size() == joint_angle.size()))
+    {
+      ROS_INFO_STREAM("move arm : " << target_pose);
+      moving_thread_ = new boost::thread(boost::bind(&TaskManager::move_arm_joint_space_thread, this, joint_name, joint_angle, path_time));
+      delete moving_thread_;
+    }
+  }
+}
+void TaskManager::move_arm_task(const std::string& target_pose)
+{
+
+}
+
+void TaskManager::move_arm_task(const geometry_msgs::Point &target_position)
+{
+  double path_time = 2.0;
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::move_arm_task_space_thread, this, target_position, path_time));
+  delete moving_thread_;
+}
+
+void TaskManager::move_arm_joint_space_thread(const std::vector<std::string>& joint_name, const std::vector<double>& joint_angle, double path_time)
+{
+  is_running_sub_task_thread_ = true;
+  bool result;
+
+  open_manipulator_msgs::SetJointPosition srv;
+  srv.request.joint_position.joint_name = joint_name;
+  srv.request.joint_position.position = joint_angle;
+  srv.request.path_time = path_time;
+
+  if(goal_joint_space_path_client_.call(srv))
+  {
+    result = srv.response.is_planned;
+    if(result == false)
+      ROS_ERROR("Planning is failed");
+  }
+  else
+  {
+    ROS_ERROR("No response from server for manipulation");
+    result = false;
+  }
+
+
+
+  is_running_sub_task_thread_ = false;
+}
+
+void TaskManager::move_arm_task_space_thread(const geometry_msgs::Point& kinematics_position, double path_time)
+{
+  is_running_sub_task_thread_ = true;
+  bool result;
+
+  open_manipulator_msgs::SetKinematicsPose srv;
+
+  srv.request.end_effector_name = "gripper";
+
+  srv.request.kinematics_pose.pose.position = kinematics_position;
+
+  srv.request.kinematics_pose.pose.orientation.w = 1;
+  srv.request.kinematics_pose.pose.orientation.x = 0;
+  srv.request.kinematics_pose.pose.orientation.y = 0;
+  srv.request.kinematics_pose.pose.orientation.z = 0;
+
+  srv.request.path_time = path_time;
+
+  if(goal_task_space_path_position_only_client_.call(srv))
+  {
+    result = srv.response.is_planned;
+  }
+  else
+    result = false;
+
+  is_running_sub_task_thread_ = false;
+}
+
+void TaskManager::open_gripper()
+{
+  double gripper_position = 0.013;
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::move_gripper_thread, this, gripper_position));
+  delete moving_thread_;
+}
+
+void TaskManager::close_gripper()
+{
+  double gripper_position = -0.013;
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::move_gripper_thread, this, gripper_position));
+  delete moving_thread_;
+}
+
+void TaskManager::move_gripper_thread(double gripper_position)
+{
+  is_running_sub_task_thread_ = true;
+  bool result;
+
+  open_manipulator_msgs::SetJointPosition srv;
+  srv.request.joint_position.joint_name.push_back("gripper");
+  srv.request.joint_position.position.push_back(gripper_position);
+
+  if(goal_tool_control_client_.call(srv))
+  {
+    result =  srv.response.is_planned;
+  }
+  else
+  {
+    result = false;
+  }
+
+  is_running_sub_task_thread_ = false;
 }
 
 void TaskManager::publish_goal_nav_msg(const geometry_msgs::PoseStamped& goal_msg)
@@ -990,30 +1384,66 @@ void TaskManager::publish_marker(bool clear, const std::vector<geometry_msgs::Po
   debug_marker_pub_.publish(marker_array);
 }
 
+void TaskManager::publish_reset_turtlebot()
+{
+  std_msgs::Empty msg;
+
+  reset_turtlebot_pub_.publish(msg);
+  ROS_INFO("RESET Turtlebot!!");
+}
+
 void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
 {
-  if(is_running_thread_ == true)
+  // check command for controlling the task
+  COMMAND current_command = NONE;
+  if(msg->data == "stop")
+    current_command = STOP;
+  else if(msg->data == "pause")
+    current_command = PAUSE;
+  else if(msg->data == "resume")
+    current_command = RESUME;
+  else if(msg->data == "ready")
+    current_command = READY;
+
+  if(current_command != NONE)
   {
-    ROS_WARN("Moving thread is running, command is ignored.");
+    control_task(current_command);
     return;
   }
 
-  // navigation
-  if(msg->data.find("nav") != std::string::npos)
-    nav_to_target(msg->data);
+  // task command
+  if(is_running_task_thread_ == true)
+  {
+    ROS_WARN("Task thread is running, command is ignored.");
 
-  // approach
-  else if(msg->data.find("approach") != std::string::npos)
-    approach_target(msg->data);
-
-  else if(msg->data.find("leave") != std::string::npos)
-    leave_target(msg->data);
-
-  else if(msg->data.find("find") != std::string::npos)
-    look_around(msg->data);
-
+    return;
+  }
   else
     run_task(msg->data);
+
+  // nav command for testing
+  if(is_running_sub_task_thread_ == true)
+  {
+    ROS_WARN("Moving thread is running, command is ignored.");
+
+    return;
+  }
+  else
+  {
+    // navigation
+    if(msg->data.find("nav") != std::string::npos)
+      nav_to_target(msg->data);
+
+    // approach
+    else if(msg->data.find("approach") != std::string::npos)
+      approach_target(msg->data);
+
+    else if(msg->data.find("leave") != std::string::npos)
+      leave_target(msg->data);
+
+    else if(msg->data.find("find") != std::string::npos)
+      look_around(msg->data);
+  }
 }
 
 void TaskManager::navigation_result_callback(const actionlib_msgs::GoalStatusArray::ConstPtr& msg)

@@ -37,6 +37,48 @@ void Service::set_target(const std::string& target_marker)
   target_marker_ = target_marker;
 }
 
+void Service::set_object_position(const std::vector<double>& position)
+{
+  if(position.size() != 3)
+    return;
+
+  object_position_.clear();
+
+  object_position_.push_back(position.at(0));
+  object_position_.push_back(position.at(1));
+  object_position_.push_back(position.at(2));
+}
+
+void Service::set_object_position(double pos_x, double pos_y, double pos_z)
+{
+  object_position_.clear();
+
+  object_position_.push_back(pos_x);
+  object_position_.push_back(pos_y);
+  object_position_.push_back(pos_z);
+}
+
+void Service::set_target_position(const std::vector<double>& position)
+{
+  if(position.size() != 3)
+    return;
+
+  target_position_.clear();
+
+  target_position_.push_back(position.at(0));
+  target_position_.push_back(position.at(1));
+  target_position_.push_back(position.at(2));
+}
+
+void Service::set_target_position(double pos_x, double pos_y, double pos_z)
+{
+  target_position_.clear();
+
+  target_position_.push_back(pos_x);
+  target_position_.push_back(pos_y);
+  target_position_.push_back(pos_z);
+}
+
 void Service::set_room_x(double x_max, double x_min)
 {
   room_x_.clear();
@@ -63,4 +105,49 @@ bool Service::get_room_center(double& x, double&y)
 
   return true;
 }
+
+bool Service::get_object_position(double& pos_x, double& pos_y, double& pos_z)
+{
+  if(object_position_.size() != 3)
+    return false;
+
+  pos_x = object_position_.at(0);
+  pos_y = object_position_.at(1);
+  pos_z = object_position_.at(2);
+
+  return true;
 }
+
+bool Service::get_object_position(std::vector<double>& position)
+{
+  if(object_position_.size() != 3)
+    return false;
+
+  position = object_position_;
+
+  return true;
+}
+
+bool Service::get_target_position(double& pos_x, double& pos_y, double& pos_z)
+{
+  if(target_position_.size() != 3)
+    return false;
+
+  pos_x = target_position_.at(0);
+  pos_y = target_position_.at(1);
+  pos_z = target_position_.at(2);
+
+  return true;
+}
+
+bool Service::get_target_position(std::vector<double>& position)
+{
+  if(target_position_.size() != 3)
+    return false;
+
+  position = target_position_;
+
+  return true;
+}
+
+} // namespace

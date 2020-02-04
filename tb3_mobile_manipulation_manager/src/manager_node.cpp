@@ -93,6 +93,9 @@ int main(int argc, char **argv)
   // setLED(0x01 | 0x02 | 0x04);
 
   ROS_INFO("Start task manager!");
+
+  task_manager->ready_task();
+
   //node loop
   while (ros::ok())
   {

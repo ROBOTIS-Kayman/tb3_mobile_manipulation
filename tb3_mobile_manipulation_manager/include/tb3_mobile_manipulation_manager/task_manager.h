@@ -33,8 +33,8 @@
 #include <geometry_msgs/Pose2D.h>
 #include <geometry_msgs/Twist.h>
 #include <visualization_msgs/MarkerArray.h>
-#include <move_base_msgs/MoveBaseAction.h>
 #include <actionlib_msgs/GoalStatusArray.h>
+#include <actionlib_msgs/GoalID.h>
 
 #include "open_manipulator_msgs/SetActuatorState.h"
 #include "open_manipulator_msgs/SetJointPosition.h"
@@ -106,6 +106,7 @@ public:
   void approach_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
   void leave_target(const std::string &command);
   void leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
+  void cancel_nav();
   bool nav_to_target(const std::string& target_name);
   bool nav_to_target(const geometry_msgs::Pose &target_pose);
   bool nav_to_target(const std::string& target_name, const std::string& real_target);
@@ -151,6 +152,7 @@ public:
   bool is_pause_;
   boost::thread* moving_thread_;
   boost::thread* task_thread_;
+  std::string navigation_goal_id_;
   int navigation_status_;
   int interval_sleep_ms_;
   double linear_vel_;
@@ -164,6 +166,7 @@ public:
 
   // publisher/subscriber
   ros::Publisher goal_nav_pub_;
+  ros::Publisher cancel_nav_pub_;
   ros::Publisher cmd_vel_pub_;
   ros::Publisher debug_marker_pub_;
   ros::Publisher reset_turtlebot_pub_;
@@ -175,6 +178,7 @@ public:
   ros::ServiceClient goal_task_space_path_position_only_client_;
   ros::ServiceClient goal_tool_control_client_;
   ros::ServiceClient set_actuator_state_client_;
+
 };
 }
 

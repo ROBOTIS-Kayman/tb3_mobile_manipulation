@@ -42,5 +42,7 @@
   <depend>tf</depend>
   <depend>move_base_msgs</depend>
   <depend>roslib</depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
 
 </package>

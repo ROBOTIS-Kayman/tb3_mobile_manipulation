@@ -19,6 +19,8 @@ find_package(catkin REQUIRED COMPONENTS
   cmake_modules
   eigen_conversions
   move_base_msgs
+  actionlib
+  actionlib_msgs
 )
 
 ## System dependencies are found with CMake's conventions

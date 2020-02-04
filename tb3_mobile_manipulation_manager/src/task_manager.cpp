@@ -105,6 +105,10 @@ void TaskManager::ready_task_thread()
 
   // move arm to init pose
   move_arm_joint("home_with_object");
+
+  sleep_for(100, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
+
+  open_gripper();
 }
 
 bool TaskManager::run_task(const std::string& task_name)
@@ -427,6 +431,7 @@ void TaskManager::callback_thread()
   ros::NodeHandle nh;
   //  ros::NodeHandle priv_nh_;
   goal_nav_pub_ = nh.advertise<geometry_msgs::PoseStamped>(robot_name_ + "/move_base_simple/goal", 0);
+  cancel_nav_pub_ = nh.advertise<actionlib_msgs::GoalID>(robot_name_ + "/move_base/cancel", 0);
   cmd_vel_pub_ = nh.advertise<geometry_msgs::Twist>(robot_name_ + "/cmd_vel", 0);
   debug_marker_pub_ = nh.advertise<visualization_msgs::MarkerArray>(robot_name_ + "/marker", 0);
   reset_turtlebot_pub_ = nh.advertise<std_msgs::Empty>(robot_name_ + "/reset", 0);
@@ -439,7 +444,6 @@ void TaskManager::callback_thread()
   goal_task_space_path_position_only_client_ = nh.serviceClient<open_manipulator_msgs::SetKinematicsPose>(robot_name_ + "/goal_task_space_path_position_only");
   goal_tool_control_client_ = nh.serviceClient<open_manipulator_msgs::SetJointPosition>(robot_name_ + "/goal_tool_control");
   set_actuator_state_client_ = nh.serviceClient<open_manipulator_msgs::SetActuatorState>(robot_name_ + "/set_actuator_state");
-
 
   tf_listener_.reset( new tf::TransformListener());
 
@@ -918,6 +922,16 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   is_running_sub_task_thread_ = false;
 }
 
+void TaskManager::cancel_nav()
+{
+  actionlib_msgs::GoalID cancel_msg;
+  cancel_msg.id = navigation_goal_id_;
+
+  cancel_nav_pub_.publish(cancel_msg);
+
+  ROS_INFO("Nav goal is canceled.");
+}
+
 bool TaskManager::nav_to_target(const std::string& target_name)
 {
   return nav_to_target(target_name, "");
@@ -1099,7 +1113,10 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
     {
       bool result = get_target_pose(real_target, real_target_pose);
       if(result == true)
+      {
+        cancel_nav();
         break;
+      }
     }
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
   }
@@ -1472,6 +1489,7 @@ void TaskManager::navigation_result_callback(const actionlib_msgs::GoalStatusArr
   if(msg->status_list.size() == 0)
     return;
 
+  navigation_goal_id_ = msg->status_list.rbegin()->goal_id.id;
   navigation_status_ = msg->status_list.rbegin()->status;
   //  std::cout << "navigation : " << navigation_status_ << std::endl;
   //  navigation_status_ = msg->status.status;

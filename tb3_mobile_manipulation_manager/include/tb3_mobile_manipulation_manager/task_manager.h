@@ -178,7 +178,7 @@ public:
   ros::ServiceClient goal_task_space_path_position_only_client_;
   ros::ServiceClient goal_tool_control_client_;
   ros::ServiceClient set_actuator_state_client_;
-
+//  actionlib::SimpleActionClient<actionlib_msgs::GoalID> *cancel_nav_client_;
 };
 }
 

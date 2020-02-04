@@ -1098,16 +1098,15 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
   publish_goal_nav_msg(nav_msg);
 
   // wait for accept
-  //  ros::Duration dur(0.1);
-  while(navigation_status_ != move_base_msgs::MoveBaseActionResult::_status_type::ACTIVE)
-    //    dur.sleep();
+//  while(navigation_status_ != move_base_msgs::MoveBaseActionResult::_status_type::ACTIVE)
+  while(navigation_status_ != actionlib_msgs::GoalStatus::ACTIVE)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
 
   ROS_INFO_STREAM("Navigation message is accepted. : " << navigation_status_);
 
   // wait for finishing navigation
   geometry_msgs::Pose real_target_pose;
-  while(navigation_status_ == move_base_msgs::MoveBaseActionResult::_status_type::ACTIVE)
+  while(navigation_status_ == actionlib_msgs::GoalStatus::ACTIVE)
   {
     if(real_target != "")
     {

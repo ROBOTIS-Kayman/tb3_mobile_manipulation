@@ -15,9 +15,9 @@ arm_pose:
       
   via_pose : 
     joint1 : 0.0
-    joint2 : -60
-    joint3 : 20
-    joint4 : 40
+    joint2 : -18
+    joint3 : 21
+    joint4 : -3
   
 approach:
   linear_vel : 0.05

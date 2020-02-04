@@ -226,6 +226,15 @@ void TaskManager::run_task_thread(Service* current_service)
     return;
   }
 
+  // manipulation : move to via pose
+  move_arm_joint("via_pose");
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
   // manipulation : move to init pose
   move_arm_joint("home_with_object");
   continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
@@ -319,6 +328,14 @@ void TaskManager::run_task_thread(Service* current_service)
     }
   }
 
+  // manipulation : move to via pose
+  move_arm_joint("via_pose");
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
 
   // manipulation : place
   geometry_msgs::Point target_position;
@@ -1239,7 +1256,8 @@ void TaskManager::move_arm_joint_space_thread(const std::vector<std::string>& jo
     result = false;
   }
 
-
+  if(result == true)
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(int(path_time * 1000)));
 
   is_running_sub_task_thread_ = false;
 }
@@ -1268,6 +1286,9 @@ void TaskManager::move_arm_task_space_thread(const geometry_msgs::Point& kinemat
   }
   else
     result = false;
+
+  if(result == true)
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(int(path_time * 1000)));
 
   is_running_sub_task_thread_ = false;
 }

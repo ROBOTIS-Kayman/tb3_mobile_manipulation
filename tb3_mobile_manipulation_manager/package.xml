@@ -44,5 +44,6 @@
   <depend>roslib</depend>
   <depend>actionlib</depend>
   <depend>actionlib_msgs</depend>
+  <depend>sensor_msgs</depend>
 
 </package>

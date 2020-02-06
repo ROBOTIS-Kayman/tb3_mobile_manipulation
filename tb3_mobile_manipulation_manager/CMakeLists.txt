@@ -21,6 +21,7 @@ find_package(catkin REQUIRED COMPONENTS
   move_base_msgs
   actionlib
   actionlib_msgs
+  sensor_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -135,7 +136,7 @@ endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES mobile_robot_manager
-CATKIN_DEPENDS roslib open_manipulator_msgs roscpp rospy turtlebot3_msgs geometry_msgs std_msgs move_base_msgs
+CATKIN_DEPENDS roslib open_manipulator_msgs roscpp rospy turtlebot3_msgs geometry_msgs std_msgs move_base_msgs actionlib actionlib_msgs sensor_msgs
 #  DEPENDS system_lib
 )
 

@@ -94,7 +94,7 @@ int main(int argc, char **argv)
 
   ROS_INFO("Start task manager!");
 
-  task_manager->ready_task();
+//  task_manager->ready_task();
 
   //node loop
   while (ros::ok())

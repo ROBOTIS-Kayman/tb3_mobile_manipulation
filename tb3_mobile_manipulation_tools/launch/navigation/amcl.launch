@@ -1,6 +1,6 @@
 <launch>
   <!-- Arguments -->
-  <arg name="use_robot_name" default="om_with_tb3"/>
+  <arg name="use_robot_name" default="tb3_manipulation"/>
   <arg name="scan_topic"     default="scan"/>
   <arg name="initial_pose_x" default="0.0"/>
   <arg name="initial_pose_y" default="0.0"/>

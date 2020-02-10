@@ -85,6 +85,7 @@ public:
   void start_mission(int mission_index);
   void pause_mission();
   void resume_mission();
+  void restart_mission(const std::string &mission_name);
   void stop_mission();
 
   // task
@@ -114,7 +115,7 @@ protected:
   bool is_possible_to_find(const std::string &target_name);
 
   // mission
-  void mission_thread();
+  void mission_thread(const std::string &start_mission);
   void on_start_mission();
   void on_finish_mission();
 
@@ -181,6 +182,7 @@ protected:
   bool is_running_mission_;
   bool is_running_task_thread_;
   bool is_running_sub_task_thread_;
+  bool is_ready_mission_;
   bool is_stop_mission_;
   bool is_pause_mission_;
   bool is_stop_;
@@ -191,10 +193,13 @@ protected:
   boost::thread* task_thread_;
   std::string navigation_goal_id_;
   int navigation_status_;
-  int interval_sleep_ms_;
+  int approach_interval_sleep_ms_;
   int repeat_times_;
-  double linear_vel_;
-  double angular_vel_;
+  double approach_linear_vel_;
+  double approach_angular_vel_;
+  int leave_interval_sleep_ms_;
+  double leave_linear_vel_;
+  double leave_angular_vel_;
   int obstacle_status_;
 
   std::vector<geometry_msgs::Pose2D> approach_pose_list_;

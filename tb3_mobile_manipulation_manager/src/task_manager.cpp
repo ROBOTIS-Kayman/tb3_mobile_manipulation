@@ -32,9 +32,12 @@ TaskManager::TaskManager()
     is_stop_(false),
     is_pause_(false),
     repeat_times_(3),
-    interval_sleep_ms_(500),
-    linear_vel_(0.05),
-    angular_vel_(0.1),
+    approach_interval_sleep_ms_(500),
+    approach_linear_vel_(0.05),
+    approach_angular_vel_(0.1),
+    leave_interval_sleep_ms_(500),
+    leave_linear_vel_(0.05),
+    leave_angular_vel_(0.1),
     navigation_status_(actionlib_msgs::GoalStatus::PENDING),
     obstacle_status_(SAFE)
 {
@@ -71,27 +74,47 @@ void TaskManager::start_mission(int mission_index = 0)
 
   // ready
 
-  boost::thread *misstion_thread = new boost::thread(boost::bind(&TaskManager::mission_thread, this));
+  boost::thread *misstion_thread = new boost::thread(boost::bind(&TaskManager::mission_thread, this, ""));
   delete misstion_thread;
 }
 
 void TaskManager::pause_mission()
-{
-
+{  
+  if(is_running_mission_ == true)
+    is_pause_ = true;
 }
 
 void TaskManager::resume_mission()
 {
+  if(is_running_mission_ == true)
+    is_pause_ = false;
+}
+
+void TaskManager::restart_mission(const std::string& mission_name)
+{
+  if(is_running_mission_ == true)
+    return;
+
+  ROS_INFO_STREAM("Restart misstion!!!!! : " << mission_name);
+
+  // ready
+
+  boost::thread *misstion_thread = new boost::thread(boost::bind(&TaskManager::mission_thread, this, mission_name));
+  delete misstion_thread;
 
 }
 
 void TaskManager::stop_mission()
-{
-
+{  
+  if(is_running_mission_ == true)
+    is_stop_ = true;
 }
 
 void TaskManager::on_start_mission()
 {
+  if(is_ready_mission_ == true)
+    return;
+
   ready_task();
 
   sleep_for(100, 0, is_running_task_thread_, is_pause_, is_stop_);
@@ -104,7 +127,7 @@ void TaskManager::on_finish_mission()
   sleep_for(100, 0, is_running_task_thread_, is_pause_, is_stop_);
 }
 
-void TaskManager::mission_thread()
+void TaskManager::mission_thread(const std::string& start_mission)
 {
   is_running_mission_ = true;
   mission_result_ = true;
@@ -112,9 +135,21 @@ void TaskManager::mission_thread()
   on_start_mission();
 
   int sleep_ms = 100;
+  bool is_restart = false;
+
+  if(start_mission != "")
+    is_restart = true;
 
   for(auto service_element : room_service_list_)
   {
+    if(is_restart == true)
+    {
+      if(service_element.first != start_mission)
+        continue;
+      else
+        is_restart = false;
+    }
+
     run_task(service_element.first);
 
     bool continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_task_thread_, is_pause_mission_, is_stop_mission_);
@@ -219,6 +254,7 @@ void TaskManager::ready_task_thread()
 
   sleep_for(100, 3000, is_running_sub_task_thread_, is_pause_, is_stop_);
 
+  is_ready_mission_ = true;
   is_running_task_thread_ = false;
 }
 
@@ -228,6 +264,8 @@ void TaskManager::finish_task()
 
   moving_thread_ = new boost::thread(boost::bind(&TaskManager::finish_task_thread, this));
   delete moving_thread_;
+
+  is_ready_mission_ = false;
 }
 
 void TaskManager::finish_task_thread()
@@ -819,13 +857,19 @@ void TaskManager::load_config(const std::string &path)
 
     // approach
     YAML::Node approach_node = doc["approach"];
-    linear_vel_ = approach_node["linear_vel"].as<double>();
-    angular_vel_ = approach_node["angular_vel"].as<double>();
-    interval_sleep_ms_ = approach_node["interval_sleep_ms"].as<int>();
+    approach_linear_vel_ = approach_node["linear_vel"].as<double>();
+    approach_angular_vel_ = approach_node["angular_vel"].as<double>();
+    approach_interval_sleep_ms_ = approach_node["interval_sleep_ms"].as<int>();
     repeat_times_ = approach_node["repeat_times"].as<int>();
     if(repeat_times_ < 1)
       repeat_times_ = 1;
 
+
+    // leave
+    YAML::Node leave_node = doc["leave"];
+    leave_linear_vel_ = leave_node["linear_vel"].as<double>();
+    leave_angular_vel_ = leave_node["angular_vel"].as<double>();
+    leave_interval_sleep_ms_ = leave_node["interval_sleep_ms"].as<int>();
   }
   catch (const std::exception& e)
   {
@@ -943,7 +987,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_1 > 0) ? angular_vel_ : - angular_vel_;
+  approach_msg.angular.z = (yaw_1 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -959,10 +1003,10 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms_));
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
 
   // go to via
-  approach_msg.linear.x = linear_vel_;
+  approach_msg.linear.x = approach_linear_vel_;
   approach_msg.linear.y = 0.0;
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
@@ -985,7 +1029,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
       break;
     }
   }
-//  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
+  //  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
   ROS_WARN_STREAM_COND(DEBUG, "go straight : " << distance << ", time(ms) : " << moving_time);
 
   approach_msg.linear.x = 0.0;
@@ -996,7 +1040,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms_));
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
 
   // turn to target theta
   approach_msg.linear.x = 0.0;
@@ -1004,7 +1048,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_2 > 0) ? angular_vel_ : - angular_vel_;
+  approach_msg.angular.z = (yaw_2 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -1020,14 +1064,14 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms_));
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
 
   if(is_final_approach)
   {
     double final_approach_distance = 0.05;
 
     // go to target(final approach)
-    approach_msg.linear.x = linear_vel_;
+    approach_msg.linear.x = approach_linear_vel_;
     approach_msg.linear.y = 0.0;
     approach_msg.linear.z = 0.0;
     approach_msg.angular.x = 0.0;
@@ -1050,7 +1094,7 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
         break;
       }
     }
-//    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
+    //    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
     ROS_WARN_STREAM_COND(DEBUG, "go straight : " << distance << ", time(ms) : " << moving_time);
 
     approach_msg.linear.x = 0.0;
@@ -1103,8 +1147,8 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
 
   int interval_sleep_ms = 500;
 
-  double linear_vel = -0.1;
-  double angular_vel = 0.1;
+  //  double linear_vel = -0.1;
+  //  double angular_vel = 0.1;
 
   double diff_x = present_pose.x - target_pose.x;
   double diff_y = present_pose.y - target_pose.y;
@@ -1120,7 +1164,7 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_1 > 0) ? angular_vel : - angular_vel;
+  approach_msg.angular.z = (yaw_1 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -1139,7 +1183,7 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
 
   // go to target
-  approach_msg.linear.x = linear_vel;
+  approach_msg.linear.x = - leave_linear_vel_;
   approach_msg.linear.y = 0.0;
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
@@ -1168,7 +1212,7 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   approach_msg.linear.z = 0.0;
   approach_msg.angular.x = 0.0;
   approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_2 > 0) ? angular_vel : - angular_vel;
+  approach_msg.angular.z = (yaw_2 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
   publish_cmd_vel_msg(approach_msg);
 
   // wait to turn
@@ -1853,21 +1897,47 @@ void TaskManager::publish_init_pose(const geometry_msgs::PoseWithCovariance& msg
 
 void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
 {
-  // check command for controlling the task
-  COMMAND current_command = NONE;
-  if(msg->data == "stop")
-    current_command = STOP;
-  else if(msg->data == "pause")
-    current_command = PAUSE;
-  else if(msg->data == "resume")
-    current_command = RESUME;
-  else if(msg->data == "ready")
-    current_command = READY;
-
-  if(current_command != NONE)
+  if(msg->data.find("mission") != std::string::npos)
   {
-    control_task(current_command);
-    return;
+    if(msg->data == "start_mission")
+      start_mission();
+    else if(msg->data == "ready_mission")
+      ready_task();
+    else if(msg->data == "stop_mission")
+      stop_mission();
+    else if(msg->data == "pause_mission")
+      pause_mission();
+    else if(msg->data == "resume_mission")
+      resume_mission();
+    else if(msg->data.find("restart_mission") != std::string::npos)
+    {
+      std::size_t pos = msg->data.find(":");
+      if(pos != std::string::npos)
+      {
+        std::string mission_name = msg->data.substr(pos+1);
+        restart_mission(mission_name);
+      }
+    }
+  }
+
+  // check command for controlling the task
+  if(msg->data.find("task") != std::string::npos)
+  {
+    COMMAND current_command = NONE;
+    if(msg->data == "stop_task")
+      current_command = STOP;
+    else if(msg->data == "pause_task")
+      current_command = PAUSE;
+    else if(msg->data == "resume_task")
+      current_command = RESUME;
+    else if(msg->data == "ready_task")
+      current_command = READY;
+
+    if(current_command != NONE)
+    {
+      control_task(current_command);
+      return;
+    }
   }
 
   // task command
@@ -1903,9 +1973,6 @@ void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
     else if(msg->data.find("find") != std::string::npos)
       look_around(msg->data);
   }
-
-  if(msg->data == "start_mission")
-    start_mission();
 }
 
 void TaskManager::navigation_result_callback(const actionlib_msgs::GoalStatusArray::ConstPtr& msg)
@@ -1921,66 +1988,73 @@ void TaskManager::navigation_result_callback(const actionlib_msgs::GoalStatusArr
 // check obstacle(front right/left)
 void TaskManager::laser_scan_callback(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
-  double warning_range = 0.17;
-  double danger_range = 0.15;
+  double warning_range = 0.18;
+  double danger_range = 0.16;
 
-  // check front_right (40 deg ~ 50 deg)
-  int start_index = int(((40.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
-  int end_index = int(((50.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
+  // check front_left (45 deg ~ 60 deg)
+  int start_index = int(((45.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
+  int end_index = int(((60.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
   double distance_average = 0;
 
-  if(start_index < msg->ranges.size() && end_index < msg->ranges.size())
-  {
+  try {
     double total_distance = 0.0;
     int count = 0;
 
     for(int ix = start_index; ix <= end_index; ix++)
     {
-      if(msg->ranges.at(ix) == 0)
+      if(msg->ranges.at(ix) < msg->range_min || msg->ranges.at(ix) > msg->range_max)
         continue;
 
       total_distance += msg->ranges.at(ix);
       count++;
     }
 
-    distance_average = total_distance / count;
+    if(count != 0)
+    {
+      distance_average = total_distance / count;
 
-    if(distance_average < danger_range)
-      obstacle_status_ = DANGER;
-    else if(distance_average < warning_range)
-      obstacle_status_ = WARNING;
-    else
-      obstacle_status_ = SAFE;
-  }
+      if(distance_average < danger_range)
+        obstacle_status_ = DANGER;
+      else if(distance_average < warning_range)
+        obstacle_status_ = WARNING;
+      else
+        obstacle_status_ = SAFE;
+    }
+    ROS_INFO_STREAM_COND(DEBUG, "laser scan : [" << start_index << " - " << end_index << "] : " << distance_average << ", " << count);
 
-  // check front_left (310 deg ~ 320 deg)
-  start_index = int(((310.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
-  end_index = int(((320.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
-  distance_average = 0;
+    // check front_right (300 deg ~ 315 deg)
+    start_index = int(((300.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
+    end_index = int(((315.0 * M_PI / 180.0) - msg->angle_min) / msg->angle_increment);
+    distance_average = 0;
 
-  if(start_index < msg->ranges.size() && end_index < msg->ranges.size())
-  {
-    double total_distance = 0.0;
-    int count = 0;
+    total_distance = 0.0;
+    count = 0;
 
     for(int ix = start_index; ix <= end_index; ix++)
     {
-      if(msg->ranges.at(ix) == 0)
+      if(msg->ranges.at(ix) < msg->range_min || msg->ranges.at(ix) > msg->range_max)
         continue;
 
       total_distance += msg->ranges.at(ix);
       count++;
     }
+    if(count != 0)
+    {
+      distance_average = total_distance / count;
 
-    distance_average = total_distance / count;
+      if(distance_average < danger_range)
+        obstacle_status_ = DANGER;
+      else if(distance_average < warning_range)
+        obstacle_status_ = std::max<int>(obstacle_status_, WARNING); //(obstacle_status_ == DANGER) ? DANGER : WARNING;
+      else
+        obstacle_status_ = std::max<int>(obstacle_status_, SAFE);
+    }
 
-    if(distance_average < danger_range)
-      obstacle_status_ = DANGER;
-    else if(distance_average < warning_range)
-      obstacle_status_ = (obstacle_status_ == DANGER) ? DANGER : WARNING;
-    else
-      obstacle_status_ = (obstacle_status_ == DANGER) ? DANGER : (obstacle_status_ == WARNING) ? WARNING : SAFE;
   }
+  catch (const std::out_of_range* oor) {
+    ROS_ERROR_STREAM("Error in checking obstacle : "<< oor->what());
+  }
+
 }
 
 }

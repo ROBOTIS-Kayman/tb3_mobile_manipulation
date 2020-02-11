@@ -107,7 +107,12 @@ void TaskManager::restart_mission(const std::string& mission_name)
 void TaskManager::stop_mission()
 {  
   if(is_running_mission_ == true)
+  {
     is_stop_ = true;
+    is_stop_mission_ = true;
+  }
+  else
+    finish_task();
 }
 
 void TaskManager::on_start_mission()
@@ -476,16 +481,7 @@ void TaskManager::run_task_thread(Service* current_service)
     double yaw = atan2(room_pose.position.y, room_pose.position.x);
     get_quaternion(0, 0, yaw, room_pose.orientation);
 
-    //    nav_to_target(room_pose, target_marker_name);
-
-    //    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
-    //    if(continue_result == false)
-    //    {
-    //      on_stop_task();
-    //      return;
-    //    }
-
-    nav_result = navigation(room_pose, target_marker_name, true);
+    nav_result = navigation(room_pose, target_marker_name, false);
 
     // failed to navigation or received stop command
     if(nav_result == false)
@@ -507,14 +503,6 @@ void TaskManager::run_task_thread(Service* current_service)
   }
 
   // nav to target
-  //  nav_to_target(target_marker_name);
-
-  //  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
-  //  if(continue_result == false)
-  //  {
-  //    on_stop_task();
-  //    return;
-  //  }
   ROS_WARN("Nav to Target");
   nav_result = navigation(target_marker_name, false);
 
@@ -1330,12 +1318,15 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
 
 
     // check distance
-    std::string base_frame_id = robot_name_ + "/base_footprint";
-    double max_distance = 0.5;
-    bool distance_result = check_distance(base_frame_id, target_pose, max_distance);
+    if(real_target != "")
+    {
+      std::string base_frame_id = robot_name_ + "/base_footprint";
+      double max_distance = 0.5;
+      bool distance_result = check_distance(base_frame_id, target_pose, max_distance);
 
-    if(distance_result == true)
-      return true;
+      if(distance_result == true)
+        return true;
+    }
   }
 
   return false;
@@ -1526,6 +1517,7 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
         break;
       }
     }
+
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
   }
 

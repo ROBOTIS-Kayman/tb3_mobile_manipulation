@@ -12,7 +12,7 @@ Panels:
         - /Camera1
         - /Camera1/Visibility1
       Splitter Ratio: 0.811111093
-    Tree Height: 357
+    Tree Height: 405
   - Class: rviz/Selection
     Name: Selection
   - Class: rviz/Tool Properties
@@ -31,7 +31,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: LaserScan
+    SyncSource: ""
 Toolbars:
   toolButtonStyle: 2
 Visualization Manager:
@@ -61,14 +61,6 @@ Visualization Manager:
       Frames:
         All Enabled: false
         ar_marker_0:
-          Value: true
-        ar_marker_1:
-          Value: true
-        ar_marker_2:
-          Value: true
-        ar_marker_3:
-          Value: true
-        map:
           Value: true
         tb3_manipulation/base_footprint:
           Value: true
@@ -104,19 +96,9 @@ Visualization Manager:
           Value: false
         tb3_manipulation/end_effector_link:
           Value: false
-        tb3_manipulation/gripper_link:
-          Value: false
-        tb3_manipulation/gripper_link_sub:
-          Value: false
         tb3_manipulation/imu_link:
           Value: false
         tb3_manipulation/link1:
-          Value: false
-        tb3_manipulation/link2:
-          Value: false
-        tb3_manipulation/link3:
-          Value: false
-        tb3_manipulation/link4:
           Value: false
         tb3_manipulation/link5:
           Value: false
@@ -134,58 +116,7 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        map:
-          tb3_manipulation/odom:
-            tb3_manipulation/base_footprint:
-              tb3_manipulation/base_link:
-                tb3_manipulation/base_scan:
-                  {}
-                tb3_manipulation/camera_link:
-                  tb3_manipulation/camera_color_frame:
-                    tb3_manipulation/camera_color_optical_frame:
-                      ar_marker_0:
-                        {}
-                      ar_marker_1:
-                        {}
-                      ar_marker_2:
-                        {}
-                      ar_marker_3:
-                        {}
-                  tb3_manipulation/camera_depth_frame:
-                    tb3_manipulation/camera_depth_optical_frame:
-                      {}
-                  tb3_manipulation/camera_infra1_frame:
-                    tb3_manipulation/camera_infra1_optical_frame:
-                      {}
-                  tb3_manipulation/camera_infra2_frame:
-                    tb3_manipulation/camera_infra2_optical_frame:
-                      {}
-                  tb3_manipulation/camera_rgb_frame:
-                    tb3_manipulation/camera_rgb_optical_frame:
-                      {}
-                tb3_manipulation/caster_back_left_link:
-                  {}
-                tb3_manipulation/caster_back_right_link:
-                  {}
-                tb3_manipulation/imu_link:
-                  {}
-                tb3_manipulation/link1:
-                  tb3_manipulation/link2:
-                    tb3_manipulation/link3:
-                      tb3_manipulation/link4:
-                        tb3_manipulation/link5:
-                          tb3_manipulation/end_effector_link:
-                            {}
-                          tb3_manipulation/gripper_link:
-                            {}
-                          tb3_manipulation/gripper_link_sub:
-                            {}
-                tb3_manipulation/tb3_base_link:
-                  {}
-                tb3_manipulation/wheel_left_link:
-                  {}
-                tb3_manipulation/wheel_right_link:
-                  {}
+        {}
       Update Interval: 0
       Value: true
     - Alpha: 1
@@ -332,11 +263,11 @@ Visualization Manager:
     - Class: rviz/Camera
       Enabled: false
       Image Rendering: background and overlay
-      Image Topic: /tb3_manipulation/camera/rgb/image_raw
+      Image Topic: /tb3_manipulation/camera/color/image_raw
       Name: Camera
       Overlay Alpha: 0.5
       Queue Size: 2
-      Transport Hint: raw
+      Transport Hint: compressed
       Unreliable: false
       Value: false
       Visibility:
@@ -542,7 +473,7 @@ Visualization Manager:
       Marker Topic: /tb3_manipulation/marker
       Name: MarkerArray
       Namespaces:
-        approach_marker: true
+        {}
       Queue Size: 100
       Value: true
   Enabled: true
@@ -608,5 +539,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 959
-  X: 2877
+  X: 959
   Y: 0

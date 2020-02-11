@@ -16,6 +16,12 @@
       <param name="port" value="/dev/LDS-01" />
       <param name="frame_id" value="$(arg use_robot_name)/$(arg set_lidar_frame_id)"/>
     </node>
+    
+    <!-- laserscan filter -->
+    <node pkg="laser_filters" type="scan_to_scan_filter_chain" name="laser_filter">
+      <rosparam command="load" file="$(find tb3_mobile_manipulation_tools)/param/scan_filter.yaml" />
+      <!-- <remap from="scan" to="base_scan" /> -->
+    </node>
 
     <node pkg="turtlebot3_bringup" type="turtlebot3_diagnostics" name="turtlebot3_diagnostics" output="screen"/>
 

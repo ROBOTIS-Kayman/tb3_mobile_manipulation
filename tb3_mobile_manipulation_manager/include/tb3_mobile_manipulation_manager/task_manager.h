@@ -218,7 +218,7 @@ protected:
   ros::Subscriber cmd_sub_;
   ros::Subscriber navigation_result_sub_;
   ros::Subscriber laser_scan_sub_;
-  
+
   // service
   ros::ServiceClient goal_joint_space_path_client_;
   ros::ServiceClient goal_task_space_path_position_only_client_;

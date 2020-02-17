@@ -645,12 +645,23 @@ bool TaskManager::sleep_for(int sleep_interval, int after_interval, bool &runnin
 {
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
 
+//  ROS_WARN_STREAM("[START] thread id : " << boost::this_thread::get_id());
+
   while(running_condition || pause_condition)
   {
     if(termination_condition == true)
+    {
+//      ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
       return false;
+    }
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
+  }
+
+  if(termination_condition == true)
+  {
+//    ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
+    return false;
   }
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(after_interval));
@@ -1910,6 +1921,8 @@ void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
         restart_mission(mission_name);
       }
     }
+
+    return;
   }
 
   // check command for controlling the task

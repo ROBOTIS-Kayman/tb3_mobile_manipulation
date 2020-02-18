@@ -1,6 +1,7 @@
 <launch>
   <arg name="use_robot_name" default="tb3_manipulation"/>
   <arg name="set_lidar_frame_id" default="base_scan"/>
+  <arg name="use_filter" default="true"/>
   
   <group ns="$(arg use_robot_name)">
     <param name="robot_description"
@@ -15,16 +16,18 @@
     <node pkg="hls_lfcd_lds_driver" type="hlds_laser_publisher" name="turtlebot3_lds" output="screen">
       <param name="port" value="/dev/LDS-01" />
       <param name="frame_id" value="$(arg use_robot_name)/$(arg set_lidar_frame_id)"/>
-      <remap from="scan" to="scan_raw"/>
+      <remap if="$(arg use_camera)" from="scan" to="scan_raw"/>
     </node>
     
     <!-- laserscan filter -->
-  <node name="laser_scan_filter_node" pkg="tb3_mobile_manipulation_tools" type="laser_scan_filter_node" respawn="false" output="screen">
-    <param name="input_topic" value="/tb3_manipulation/scan_raw"/>
-    <param name="output_topic" value="/tb3_manipulation/scan"/>
-    <param name="mean_k" value="4"/>
-    <param name="std_dev_mul" value="2"/>
-  </node>  
+    <group if="$(arg use_camera)">
+      <node name="laser_scan_filter_node" pkg="tb3_mobile_manipulation_tools" type="laser_scan_filter_node" respawn="false" output="screen">
+        <param name="input_topic" value="/tb3_manipulation/scan_raw"/>
+        <param name="output_topic" value="/tb3_manipulation/scan"/>
+        <param name="mean_k" value="4"/>
+        <param name="std_dev_mul" value="2"/>
+      </node>  
+    </group>
 
     <node pkg="turtlebot3_bringup" type="turtlebot3_diagnostics" name="turtlebot3_diagnostics" output="screen"/>
 

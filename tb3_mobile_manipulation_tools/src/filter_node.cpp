@@ -37,45 +37,16 @@ int main(int argc, char **argv)
 
   ROS_INFO_STREAM("K : " << mean_k_ << ", Multiplier : " << std_dev_mul_);
 
-
-  // init_pose_pub = nh.advertise<std_msgs::String>("/robotis/base/ini_pose", 0);
-  // play_sound_pub = nh.advertise<std_msgs::String>("/play_sound_file", 0);
-  // led_pub = nh.advertise<robotis_controller_msgs::SyncWriteItem>("/robotis/sync_write_item", 0);
   filtered_scan_pub_ = nh.advertise<sensor_msgs::LaserScan>(output_scan_name, 0);
   ros::Subscriber laser_scan_sub = nh.subscribe(input_scan_name, 1, laser_scan_callback);
-  // ros::Subscriber mode_command_sub = nh.subscribe("/robotis/mode_command", 1, demoModeCommandCallback);
-
-  // default_mp3_path = ros::package::getPath("op3_demo") + "/data/mp3/";
 
   ros::start();
 
   //set node loop rate
   ros::Rate loop_rate(SPIN_RATE);
 
-  //  tb3_mobile_manipulation::TaskManager *task_manager = new tb3_mobile_manipulation::TaskManager();
-
-  // wait for starting of manager
-  // std::string manager_name = "/op3_manager";
-  // while (ros::ok())
-  // {
-  // ros::Duration(1.0).sleep();
-
-  // if (checkManagerRunning(manager_name) == true)
-  // {
-  // break;
-  // ROS_INFO_COND(DEBUG_PRINT, "Succeed to connect");
-  // }
-  // ROS_WARN("Waiting for op3 manager");
-  // }
-
-  // init procedure
-  // playSound(default_mp3_path + "Demonstration ready mode.mp3");
-  // turn on R/G/B LED
-  // setLED(0x01 | 0x02 | 0x04);
-
   ROS_INFO("Start laser scan filter");
 
-  //  task_manager->ready_task();
 
   //node loop
   while (ros::ok())

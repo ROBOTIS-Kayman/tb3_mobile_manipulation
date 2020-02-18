@@ -20,26 +20,14 @@
 #define TB3_MOBILE_MANIPULATION_TOOLS_FILTER_NODE_H
 
 #include <ros/ros.h>
-#include <ros/package.h>
-
 #include <sensor_msgs/LaserScan.h>
 
-// const bool DEBUG_PRINT = false;
-
-ros::Publisher filtered_scan_pub_;
-// ros::Publisher play_sound_pub;
-// ros::Publisher led_pub;
-// ros::Publisher dxl_torque_pub;
-
-// std::string default_mp3_path = "";
-// int current_status = Ready;
-// int desired_status = Ready;
-// bool apply_desired = false;
 const int MIN_MEAN_K = 2;
 const int MAX_MEAN_K = 100;
 
 int mean_k_;
 double std_dev_mul_;
+ros::Publisher filtered_scan_pub_;
 
 void laser_scan_callback(const sensor_msgs::LaserScan::ConstPtr& msg);
 void publish_filtered_scan(const sensor_msgs::LaserScan &msg);

@@ -130,6 +130,9 @@ protected:
   void approach_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose, bool is_final_approach);
   void leave_target(const std::string &command);
   void leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
+  void turn_to_target(const std::string &target_name);
+  void turn_to_target(const geometry_msgs::Pose &target_pose);
+  void turn_to_target_thread(double yaw);
   void cancel_nav();
   bool navigation(const std::string &target_name, bool recovery);
   bool navigation(const std::string &target_name, const std::string& real_target, bool recovery);

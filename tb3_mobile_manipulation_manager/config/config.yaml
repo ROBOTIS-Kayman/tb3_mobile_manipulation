@@ -33,5 +33,5 @@ approach:
   
 leave : 
   linear_vel : 0.15
-  angular_vel : 0.25
+  angular_vel : 0.5
   interval_sleep_ms : 500

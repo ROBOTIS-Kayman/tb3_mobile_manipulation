@@ -218,8 +218,6 @@ void TaskManager::control_task(COMMAND command)
 
 void TaskManager::ready_task()
 {
-  ROS_INFO("Ready to run the task");
-
   moving_thread_ = new boost::thread(boost::bind(&TaskManager::ready_task_thread, this));
   delete moving_thread_;
 }
@@ -259,6 +257,8 @@ void TaskManager::ready_task_thread()
 
   sleep_for(100, 3000, is_running_sub_task_thread_, is_pause_, is_stop_);
 
+  ROS_INFO("Ready to run the task");
+
   is_ready_mission_ = true;
   is_running_task_thread_ = false;
 }
@@ -283,6 +283,8 @@ void TaskManager::finish_task_thread()
   sleep_for(100, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
 
   move_arm_joint("termination_pose");
+
+  ROS_INFO("Done a task for finish");
 
   is_running_task_thread_ = false;
 }
@@ -324,48 +326,6 @@ void TaskManager::run_task_thread(Service* current_service)
   // nav to object
   std::string object_marker_name = current_service->get_object();
   std::string target_marker_name = current_service->get_target();
-
-  //  bool result = nav_to_target(object_marker_name);
-
-  //  if(result == false)
-  //  {
-  //    // go to start point
-  //    nav_to_target("nav_start", object_marker_name);
-
-  //    continue_result = sleep_for(sleep_ms, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
-  //    if(continue_result == false)
-  //    {
-  //      on_stop_task();
-  //      mission_result_ = false;
-  //      return;
-  //    }
-
-  //    // find object again
-  //    // wait for detecting ar marker
-  //    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
-
-  //    // nav to object again
-  //    result = nav_to_target(object_marker_name);
-  //    if(result == false)
-  //    {
-  //      ROS_ERROR("Failed to find target");
-
-  //      on_stop_task();
-  //      return;
-  //    }
-  //  }
-
-  //  // todo : timeout
-  //  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
-  //  if(continue_result == false)
-  //  {
-  //    on_stop_task();
-  //    return;
-  //  }
-
-  //  std::string base_frame_id = robot_name_ + "/base_footprint";
-  //  double max_distance = 0.5;
-  //  bool distance_result = check_distance(base_frame_id, target_name, max_distance);
 
   ROS_WARN("Nav to Object");
   bool nav_result = navigation(object_marker_name, true);
@@ -411,7 +371,7 @@ void TaskManager::run_task_thread(Service* current_service)
       break;
 
     // leave
-    leave_target("leave_back");
+    leave_target("leave_back_inter");
 
     continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
     if(continue_result == false)
@@ -472,24 +432,35 @@ void TaskManager::run_task_thread(Service* current_service)
     return;
   }
 
-  // nav to room
-  ROS_WARN("Nav to Room");
+  // turn to next target
   geometry_msgs::Pose room_pose;
   bool result = current_service->get_room_center(room_pose.position.x, room_pose.position.y);
-  if(result == true)
+  if(result == false)
+    return;
+
+  turn_to_target(room_pose);
+
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
   {
-    double yaw = atan2(room_pose.position.y, room_pose.position.x);
-    get_quaternion(0, 0, yaw, room_pose.orientation);
-
-    nav_result = navigation(room_pose, target_marker_name, false);
-
-    // failed to navigation or received stop command
-    if(nav_result == false)
-    {
-      on_stop_task();
-      return;
-    }
+    on_stop_task();
+    return;
   }
+
+  // nav to room
+  ROS_WARN("Nav to Room");
+  double yaw = atan2(room_pose.position.y, room_pose.position.x);
+  get_quaternion(0, 0, yaw, room_pose.orientation);
+
+  nav_result = navigation(room_pose, target_marker_name, false);
+
+  // failed to navigation or received stop command
+  if(nav_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+  //  }
 
   // find target
   ROS_WARN("Try to find the target");
@@ -535,7 +506,7 @@ void TaskManager::run_task_thread(Service* current_service)
       break;
 
     // leave
-    leave_target("leave_back");
+    leave_target("leave_back_inter");
 
     continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
     if(continue_result == false)
@@ -596,6 +567,20 @@ void TaskManager::run_task_thread(Service* current_service)
     return;
   }
 
+  // turn to next target
+  geometry_msgs::Pose start_pose;
+  start_pose.position.x = 0;
+  start_pose.position.y = 0;
+
+  turn_to_target(start_pose);
+
+  continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return;
+  }
+
   // nav to start position
   //  nav_to_target("nav_start");
 
@@ -645,13 +630,13 @@ bool TaskManager::sleep_for(int sleep_interval, int after_interval, bool &runnin
 {
   boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
 
-//  ROS_WARN_STREAM("[START] thread id : " << boost::this_thread::get_id());
+  //  ROS_WARN_STREAM("[START] thread id : " << boost::this_thread::get_id());
 
   while(running_condition || pause_condition)
   {
     if(termination_condition == true)
     {
-//      ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
+      //      ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
       return false;
     }
 
@@ -660,7 +645,7 @@ bool TaskManager::sleep_for(int sleep_interval, int after_interval, bool &runnin
 
   if(termination_condition == true)
   {
-//    ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
+    //    ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
     return false;
   }
 
@@ -1109,14 +1094,19 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
 
 void TaskManager::leave_target(const std::string& command)
 {
-  double leave_back_range = 0.15;
+  double leave_back_range = 0.25;
+  double leave_back_inter_range = 0.15;
 
   if(command.find("back") != std::string::npos)
   {
     publish_marker(true, approach_pose_list_);
 
     geometry_msgs::Pose2D pose_1, pose_2;
-    pose_2.x = -leave_back_range;
+
+    if(command.find("inter") != std::string::npos)
+      pose_2.x = -leave_back_inter_range;
+    else
+      pose_2.x = -leave_back_range;
 
     moving_thread_ = new boost::thread(boost::bind(&TaskManager::leave_target_thread, this, pose_1, pose_2));
     delete moving_thread_;
@@ -1229,6 +1219,145 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
 
   is_running_sub_task_thread_ = false;
 }
+void TaskManager::turn_to_target(const std::string &target_name)
+{
+  double target_yaw = 0.0;
+
+  std::size_t pos = target_name.find("ar_marker");
+  if(pos != std::string::npos)
+  {
+    std::string marker_name = target_name.substr(pos);
+    auto find_it = std::find(marker_name_list_.begin(), marker_name_list_.end(), marker_name);
+    if(find_it == marker_name_list_.end())
+      return;
+
+    geometry_msgs::Pose target_pose, present_pose;
+
+    std::string base_frame_id = robot_name_ + "/base_footprint";
+
+    bool result = get_target_pose(marker_name, target_pose) &&
+        get_target_pose(base_frame_id, present_pose);
+
+    if(result == false)
+    {
+      ROS_ERROR("Couldn't find the target or present footprint");
+      return;
+    }
+
+    double roll, pitch, yaw;
+    get_euler_angle(present_pose.orientation, roll, pitch, yaw);
+
+    Eigen::Vector3d present_position, target_position;
+
+    tf::pointMsgToEigen(present_pose.position, present_position);
+    tf::pointMsgToEigen(target_pose.position, target_position);
+
+    Eigen::Vector3d target_vec = target_position - present_position;
+
+    // if (x > y)
+    if(fabs(target_vec.coeff(0)) > fabs(target_vec.coeff(1)))
+    {
+      if(target_vec.coeff(0) > 0)
+        target_yaw = 0;
+      else
+        target_yaw = M_PI;
+    }
+    else
+    {
+      if(target_vec.coeff(1) > 0)
+        target_yaw = M_PI * 0.5;
+      else
+        target_yaw = -M_PI * 0.5;
+    }
+
+    target_yaw = target_yaw - yaw;
+  }
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::turn_to_target_thread, this, target_yaw));
+  delete moving_thread_;
+}
+
+void TaskManager::turn_to_target(const geometry_msgs::Pose &target_pose)
+{
+  double target_yaw;
+  geometry_msgs::Pose present_pose;
+
+  std::string base_frame_id = robot_name_ + "/base_footprint";
+
+  bool result = get_target_pose(base_frame_id, present_pose);
+
+  if(result == false)
+  {
+    ROS_ERROR("Couldn't find the present footprint");
+    return;
+  }
+
+  double roll, pitch, yaw;
+  get_euler_angle(present_pose.orientation, roll, pitch, yaw);
+
+  Eigen::Vector3d present_position, target_position;
+
+  tf::pointMsgToEigen(present_pose.position, present_position);
+  tf::pointMsgToEigen(target_pose.position, target_position);
+
+  Eigen::Vector3d target_vec = target_position - present_position;
+
+  // if (x > y) --> align x-axis
+  if(fabs(target_vec.coeff(0)) > fabs(target_vec.coeff(1)))
+  {
+    if(target_vec.coeff(0) > 0)
+      target_yaw = 0;
+    else
+      target_yaw = M_PI;
+  }
+  else
+  {
+    if(target_vec.coeff(1) > 0)
+      target_yaw = M_PI * 0.5;
+    else
+      target_yaw = -M_PI * 0.5;
+  }
+
+  target_yaw = target_yaw - yaw;
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::turn_to_target_thread, this, target_yaw));
+  delete moving_thread_;
+}
+
+void TaskManager::turn_to_target_thread(double yaw)
+{
+  is_running_sub_task_thread_ = true;
+
+  if(yaw == 0)
+    return;
+
+  //  double linear_vel = -0.1;
+//    double angular_vel = 0.2;
+
+  // turn to yaw
+  geometry_msgs::Twist approach_msg;
+  approach_msg.linear.x = 0.0;
+  approach_msg.linear.y = 0.0;
+  approach_msg.linear.z = 0.0;
+  approach_msg.angular.x = 0.0;
+  approach_msg.angular.y = 0.0;
+  approach_msg.angular.z = (yaw > 0) ? leave_angular_vel_ : - leave_angular_vel_;
+  publish_cmd_vel_msg(approach_msg);
+
+  // wait to turn
+  int moving_time = yaw * 1000 / approach_msg.angular.z;
+  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
+
+  approach_msg.linear.x = 0.0;
+  approach_msg.linear.y = 0.0;
+  approach_msg.linear.z = 0.0;
+  approach_msg.angular.x = 0.0;
+  approach_msg.angular.y = 0.0;
+  approach_msg.angular.z = 0.0;
+  publish_cmd_vel_msg(approach_msg);
+
+  is_running_sub_task_thread_ = false;
+}
 
 bool TaskManager::navigation(const std::string &target_name, bool recovery = false)
 {
@@ -1253,7 +1382,10 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
 
       bool continue_result = sleep_for(sleep_ms, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
       if(continue_result == false)
+      {
+        cancel_nav();
         return false;
+      }
 
       // find object again
       // wait for detecting ar marker
@@ -1268,18 +1400,26 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
     // todo : timeout
     bool continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
     if(continue_result == false)
+    {
+      cancel_nav();
       return false;
+    }
 
 
     // check distance
-    std::size_t pos = target_name.find("ar_marker");
-    if(pos != std::string::npos)
+    if(real_target == "")
     {
-      std::string base_frame_id = robot_name_ + "/base_footprint";
-      double max_distance = 0.5;
-      bool distance_result = check_distance(base_frame_id, target_name, max_distance);
+      std::size_t pos = target_name.find("ar_marker");
+      if(pos != std::string::npos)
+      {
+        std::string base_frame_id = robot_name_ + "/base_footprint";
+        double max_distance = 0.5;
+        bool distance_result = check_distance(base_frame_id, target_name, max_distance);
 
-      if(distance_result == true)
+        if(distance_result == true)
+          return true;
+      }
+      else
         return true;
     }
     else
@@ -1310,7 +1450,10 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
 
       bool continue_result = sleep_for(sleep_ms, 0, is_running_sub_task_thread_, is_pause_, is_stop_);
       if(continue_result == false)
+      {
+        cancel_nav();
         return false;
+      }
 
       // find object again
       // wait for detecting ar marker
@@ -1325,11 +1468,14 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
     // todo : timeout
     bool continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
     if(continue_result == false)
+    {
+      cancel_nav();
       return false;
+    }
 
 
     // check distance
-    if(real_target != "")
+    if(real_target == "")
     {
       std::string base_frame_id = robot_name_ + "/base_footprint";
       double max_distance = 0.5;
@@ -1338,6 +1484,9 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
       if(distance_result == true)
         return true;
     }
+    else
+      return true;
+
   }
 
   return false;
@@ -1521,12 +1670,22 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
   {
     if(real_target != "")
     {
-      bool result = get_target_pose(real_target, real_target_pose);
-      if(result == true)
+      std::string base_frame_id = robot_name_ + "/base_footprint";
+      double max_distance = 1.0;
+      bool distance_result = check_distance(base_frame_id, real_target, max_distance);
+
+      if(distance_result == true)
       {
         cancel_nav();
         break;
       }
+
+//      bool result = get_target_pose(real_target, real_target_pose);
+//      if(result == true)
+//      {
+//        cancel_nav();
+//        break;
+//      }
     }
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
@@ -1906,6 +2065,8 @@ void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
       start_mission();
     else if(msg->data == "ready_mission")
       ready_task();
+    else if(msg->data == "finish_mission")
+      finish_task();
     else if(msg->data == "stop_mission")
       stop_mission();
     else if(msg->data == "pause_mission")

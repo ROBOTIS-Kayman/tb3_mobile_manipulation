@@ -1,0 +1,18 @@
+<launch>
+  <arg name="use_robot_name" default="tb3_manipulation"/>
+  
+  <!-- turtlebot3 -->
+  <include file="$(find tb3_mobile_manipulation_tools)/launch/tb3_mobile_manipulation.launch">
+    <arg name="use_robot_name" value="$(arg use_robot_name)"/>
+  </include>
+  
+  <!-- navigation -->
+  <include file="$(find tb3_mobile_manipulation_tools)/launch/navigation/navigation.launch">
+    <arg name="use_robot_name" value="$(arg use_robot_name)"/>
+  </include>
+  
+  <!-- camera -->
+  <include file="$(find tb3_mobile_manipulation_tools)/launch/camera_ar_track.launch">
+    <arg name="use_robot_name" value="$(arg use_robot_name)"/>
+  </include>
+</launch>

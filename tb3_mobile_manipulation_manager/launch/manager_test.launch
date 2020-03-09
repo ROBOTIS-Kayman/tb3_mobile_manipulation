@@ -4,7 +4,7 @@
   <group ns="$(arg use_robot_name)">
         
     <!-- Manager -->
-    <node pkg="tb3_mobile_manipulation_manager" type="manager_node" name="mission_manager" output="screen">
+    <node pkg="tb3_mobile_manipulation_manager" type="manager_node" name="mission_manager" output="screen" respawn="true" respawn_delay="5">
       <param name="task_data_path" value="$(find tb3_mobile_manipulation_manager)/config/room_test.yaml"/>
     </node>
     

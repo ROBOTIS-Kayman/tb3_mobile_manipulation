@@ -2,7 +2,7 @@
   <arg name="use_robot_name" default="tb3_manipulation"/>
   
   <!-- turtlebot3 -->
-  <include file="$(find tb3_mobile_manipulation_tools)/launch/tb3_mobile_manipulation.launch">
+  <include file="$(find tb3_mobile_manipulation_tools)/launch/turtlebot3_nuc/tb3_mobile_manipulation.launch">
     <arg name="use_robot_name" value="$(arg use_robot_name)"/>
   </include>
   

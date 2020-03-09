@@ -51,7 +51,8 @@ bool TaskManager::approach_target(const std::string& target_name, int total_coun
         return false;
       }
 
-      double final_offset = 0.1 + (total_count - present_count) * 0.05;
+      //      double final_offset = 0.1 + (total_count - present_count) * 0.05;
+      double final_offset = approach_distance_ + (total_count - present_count) * 0.05;
       double via_offset = final_offset + 0.05;
 
       //      Eigen::Vector3d offset(0, 0, final_offset);
@@ -88,7 +89,7 @@ bool TaskManager::approach_target(const std::string& target_name, int total_coun
       approach_pose_list_.clear();
       approach_pose_list_.push_back(present_pose_2d);
       approach_pose_list_.push_back(target_pose_2d);
-      publish_marker(false, approach_pose_list_);
+      publish_approach_marker(false, approach_pose_list_);
 
       bool is_final = (total_count == present_count);
       moving_thread_ = new boost::thread(boost::bind(&TaskManager::approach_target_thread, this, present_pose_2d, target_pose_2d, is_final));
@@ -121,89 +122,101 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
 
   ROS_INFO_STREAM_COND(DEBUG, "yaw_1 : " << (yaw_1 * 180 / M_PI) << ", distance : " << distance << ", yaw_2 : " << (yaw_2 * 180 / M_PI));
 
-  // turn to yaw_1
   geometry_msgs::Twist approach_msg;
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_1 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
-  publish_cmd_vel_msg(approach_msg);
+  int moving_time;
+  int total_time;
 
-  // wait to turn
-  int moving_time = yaw_1 * 1000 / approach_msg.angular.z;
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
-  ROS_WARN_STREAM_COND(DEBUG, "turn 1 : " << (yaw_1 * 180 / M_PI) << ", time(ms) : " << moving_time);
+  // turn to yaw_1
+  if(yaw_1 != 0.0)
+  {
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = (yaw_1 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
+    publish_cmd_vel_msg(approach_msg);
 
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+    // wait to turn
+    moving_time = yaw_1 * 1000 / approach_msg.angular.z;
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
+    ROS_WARN_STREAM_COND(DEBUG, "turn 1 : " << (yaw_1 * 180 / M_PI) << ", time(ms) : " << moving_time);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
+  }
 
   // go to via
-  approach_msg.linear.x = approach_linear_vel_;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
-
-  // wait to go straight
-  moving_time = distance * 1000 / approach_msg.linear.x;
-  int total_time = moving_time + additional_sleep_ms;
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(total_time % sleep_ms));
-  for(int ix = 0; (ix * sleep_ms) < total_time; ix++)
+  if(distance != 0.0)
   {
-    boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
-    if(obstacle_status_ == DANGER)
+    approach_msg.linear.x = approach_linear_vel_;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+
+    // wait to go straight
+    moving_time = distance * 1000 / approach_msg.linear.x;
+    total_time = moving_time + additional_sleep_ms;
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(total_time % sleep_ms));
+    for(int ix = 0; (ix * sleep_ms) < total_time; ix++)
     {
-      ROS_ERROR("Obstacle is close. Stopping aproach!!");
-      task_result_ = false;
-      break;
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
+      if(obstacle_status_ == DANGER)
+      {
+        ROS_ERROR("Obstacle is close. Stopping aproach!!");
+        task_result_ = false;
+        break;
+      }
     }
+    //  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
+    ROS_WARN_STREAM_COND(DEBUG, "go straight : " << distance << ", time(ms) : " << moving_time);
+
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
   }
-  //  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
-  ROS_WARN_STREAM_COND(DEBUG, "go straight : " << distance << ", time(ms) : " << moving_time);
-
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
-
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
 
   // turn to target theta
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_2 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
-  publish_cmd_vel_msg(approach_msg);
+  if(yaw_2 != 0.0)
+  {
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = (yaw_2 > 0) ? approach_angular_vel_ : - approach_angular_vel_;
+    publish_cmd_vel_msg(approach_msg);
 
-  // wait to turn
-  moving_time = yaw_2 * 1000 / approach_msg.angular.z;
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
-  ROS_WARN_STREAM_COND(DEBUG, "turn 2 : " << (yaw_2 * 180 / M_PI) << ", time(ms) : " << moving_time);
+    // wait to turn
+    moving_time = yaw_2 * 1000 / approach_msg.angular.z;
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time + additional_sleep_ms));
+    ROS_WARN_STREAM_COND(DEBUG, "turn 2 : " << (yaw_2 * 180 / M_PI) << ", time(ms) : " << moving_time);
 
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+  }
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(approach_interval_sleep_ms_));
 
@@ -256,7 +269,7 @@ void TaskManager::leave_target(const std::string& command)
 
   if(command.find("back") != std::string::npos)
   {
-    publish_marker(true, approach_pose_list_);
+    publish_approach_marker(true, approach_pose_list_);
 
     geometry_msgs::Pose2D pose_1, pose_2;
 
@@ -278,7 +291,7 @@ void TaskManager::leave_target(const std::string& command)
 
     // clear marker
     //  std::vector<geometry_msgs::Pose2D> pose_list;
-    publish_marker(true, approach_pose_list_);
+    publish_approach_marker(true, approach_pose_list_);
 
     //  double distance = 0.3;
     //  approach_thread_ = new boost::thread(boost::bind(&TaskManager::leave_target_thread, this, distance));
@@ -303,76 +316,87 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
   double yaw_1 = atan2(diff_y, diff_x) - present_pose.theta;
   double yaw_2 = target_pose.theta - atan2(diff_y, diff_x);
 
-  // turn to yaw_1
   geometry_msgs::Twist approach_msg;
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_1 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
-  publish_cmd_vel_msg(approach_msg);
+  int moving_time;
 
-  // wait to turn
-  int moving_time = yaw_1 * 1000 / approach_msg.angular.z;
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
-  //  ROS_WARN_STREAM("turn 1 : " << (yaw_1 * 180 / M_PI) << ", time(ms) : " << moving_time);
+  // turn to yaw_1
+  if(yaw_1 != 0.0)
+  {
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = (yaw_1 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
 
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+    publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+    // wait to turn
+    moving_time = yaw_1 * 1000 / approach_msg.angular.z;
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
+    //  ROS_WARN_STREAM("turn 1 : " << (yaw_1 * 180 / M_PI) << ", time(ms) : " << moving_time);
 
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+  }
   // go to target
-  approach_msg.linear.x = - leave_linear_vel_;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+  if(distance != 0.0)
+  {
+    approach_msg.linear.x = - leave_linear_vel_;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
 
-  // wait to turn
-  moving_time = - distance * 1000 / approach_msg.linear.x;
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
-  //  ROS_WARN_STREAM("go straight : " << distance << ", time(ms) : " << moving_time);
+    // wait to turn
+    moving_time = - distance * 1000 / approach_msg.linear.x;
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
+    //  ROS_WARN_STREAM("go straight : " << distance << ", time(ms) : " << moving_time);
 
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
 
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(interval_sleep_ms));
+  }
 
   // turn to target theta
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = (yaw_2 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
-  publish_cmd_vel_msg(approach_msg);
+  if(yaw_2 != 0.0)
+  {
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = (yaw_2 > 0) ? leave_angular_vel_ : - leave_angular_vel_;
+    publish_cmd_vel_msg(approach_msg);
 
-  // wait to turn
-  moving_time = yaw_2 * 1000 / approach_msg.angular.z;
-  boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
-  //  ROS_WARN_STREAM("turn 2 : " << (yaw_2 * 180 / M_PI) << ", time(ms) : " << moving_time);
+    // wait to turn
+    moving_time = yaw_2 * 1000 / approach_msg.angular.z;
+    boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
+    //  ROS_WARN_STREAM("turn 2 : " << (yaw_2 * 180 / M_PI) << ", time(ms) : " << moving_time);
 
-  approach_msg.linear.x = 0.0;
-  approach_msg.linear.y = 0.0;
-  approach_msg.linear.z = 0.0;
-  approach_msg.angular.x = 0.0;
-  approach_msg.angular.y = 0.0;
-  approach_msg.angular.z = 0.0;
-  publish_cmd_vel_msg(approach_msg);
+    approach_msg.linear.x = 0.0;
+    approach_msg.linear.y = 0.0;
+    approach_msg.linear.z = 0.0;
+    approach_msg.angular.x = 0.0;
+    approach_msg.angular.y = 0.0;
+    approach_msg.angular.z = 0.0;
+    publish_cmd_vel_msg(approach_msg);
+  }
 
   is_running_sub_task_thread_ = false;
 }
@@ -493,7 +517,7 @@ void TaskManager::turn_to_target_thread(double yaw)
     return;
 
   //  double linear_vel = -0.1;
-//    double angular_vel = 0.2;
+  //    double angular_vel = 0.2;
 
   // turn to yaw
   geometry_msgs::Twist approach_msg;
@@ -841,12 +865,12 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
         break;
       }
 
-//      bool result = get_target_pose(real_target, real_target_pose);
-//      if(result == true)
-//      {
-//        cancel_nav();
-//        break;
-//      }
+      //      bool result = get_target_pose(real_target, real_target_pose);
+      //      if(result == true)
+      //      {
+      //        cancel_nav();
+      //        break;
+      //      }
     }
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));

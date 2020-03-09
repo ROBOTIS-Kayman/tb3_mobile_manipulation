@@ -307,8 +307,28 @@ void TaskManager::run_task_thread(Service* current_service)
 
     if(approach_result == false)
     {
-      // Todo : go back and find the target
+      // go back and find the target
+      // leave
+      leave_target("leave_back_inter");
 
+      continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+      if(continue_result == false)
+      {
+        on_stop_task();
+        return;
+      }
+
+      // wait 1 sec
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
+      // try again
+      approach_result = approach_target(object_marker_name, repeat_times_, ix + 1);
+
+      if(approach_result == false)
+      {
+        ROS_ERROR("Failed to approach");
+        return;
+      }
     }
 
     // wait for approaching
@@ -353,6 +373,19 @@ void TaskManager::run_task_thread(Service* current_service)
     return;
   }
 
+  if(task_result_ == false)
+  {
+    task_result_ = true;
+    move_arm_joint("target_pose");
+
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
+  }
+
   // manipulation :: close gripper
   close_gripper();
   continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
@@ -363,7 +396,9 @@ void TaskManager::run_task_thread(Service* current_service)
   }
 
   // manipulation : move to via pose
-  move_arm_joint("via_pose");
+//  move_arm_joint("via_pose");
+  object_position.z += 0.05;
+  move_arm_task(object_position);
   continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
   if(continue_result == false)
   {
@@ -452,7 +487,33 @@ void TaskManager::run_task_thread(Service* current_service)
   for(int ix = 0; ix < approach_repeat; ix++)
   {
     // approach object
-    approach_target(target_marker_name, approach_repeat, ix + 1);
+    bool approach_result = approach_target(target_marker_name, approach_repeat, ix + 1);
+
+    if(approach_result == false)
+    {
+      // go back and find the target
+      // leave
+      leave_target("leave_back_inter");
+
+      continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+      if(continue_result == false)
+      {
+        on_stop_task();
+        return;
+      }
+
+      // wait 1 sec
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms * 10));
+
+      // try again
+      approach_result = approach_target(object_marker_name, repeat_times_, ix + 1);
+
+      if(approach_result == false)
+      {
+        ROS_ERROR("Failed to approach");
+        return;
+      }
+    }
 
     continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
     if(continue_result == false)
@@ -477,7 +538,10 @@ void TaskManager::run_task_thread(Service* current_service)
 
   // manipulation : move to via pose
   ROS_WARN("Manipulation : Place");
-  move_arm_joint("via_pose");
+//  move_arm_joint("via_pose");
+
+//  object_position.x -= 0.05;
+  move_arm_task(object_position);
   continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
   if(continue_result == false)
   {
@@ -495,6 +559,19 @@ void TaskManager::run_task_thread(Service* current_service)
   {
     on_stop_task();
     return;
+  }
+
+  if(task_result_ == false)
+  {
+    task_result_ = true;
+    move_arm_joint("target_pose");
+
+    continue_result = sleep_for(sleep_ms, sleep_ms * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return;
+    }
   }
 
   // manipulation :: open gripper
@@ -594,22 +671,21 @@ bool TaskManager::sleep_for(int sleep_interval, int after_interval, bool &runnin
   while(running_condition || pause_condition)
   {
     if(termination_condition == true)
-    {
-      //      ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
       return false;
-    }
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_interval));
   }
 
   if(termination_condition == true)
-  {
-    //    ROS_ERROR_STREAM("[STOP] thread id : " << boost::this_thread::get_id());
     return false;
-  }
 
   boost::this_thread::sleep_for(boost::chrono::milliseconds(after_interval));
   return true;
+}
+
+void TaskManager::scenario_thread()
+{
+
 }
 
 }

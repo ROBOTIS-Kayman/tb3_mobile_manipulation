@@ -21,11 +21,18 @@ arm_pose:
     
   termination_pose :
     joint1 : 0.0
-    joint2 : 0
-    joint3 : 20
-    joint4 : 70
+    joint2 : 0.0
+    joint3 : 20.0
+    joint4 : 70.0
+    
+  target_pose :
+    joint1 : 0.0
+    joint2 : -15.0
+    joint3 : 31.5
+    joint4 : -9.0
   
 approach:
+  distance : 0.075
   linear_vel : 0.05
   angular_vel : 0.1
   interval_sleep_ms : 500

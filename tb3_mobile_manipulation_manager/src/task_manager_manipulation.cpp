@@ -18,6 +18,8 @@
 
 #include "tb3_mobile_manipulation_manager/task_manager.h"
 
+#ifndef TB3_MOBILE_MANIPULATION_MOVEIT
+
 namespace tb3_mobile_manipulation
 {
 
@@ -180,3 +182,5 @@ void TaskManager::move_gripper_thread(double gripper_position)
 }
 
 }
+
+#endif

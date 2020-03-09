@@ -35,6 +35,7 @@ TaskManager::TaskManager()
     approach_interval_sleep_ms_(500),
     approach_linear_vel_(0.05),
     approach_angular_vel_(0.1),
+    approach_distance_(0.1),
     leave_interval_sleep_ms_(500),
     leave_linear_vel_(0.05),
     leave_angular_vel_(0.1),
@@ -59,6 +60,8 @@ TaskManager::TaskManager()
   load_task_data(task_data_path);
   std::string config_data_path = p_nh.param<std::string>("config_data_path", ros::package::getPath(ROS_PACKAGE_NAME) + "/config/config.yaml");
   load_config(config_data_path);
+
+  init_manipulation();
 }
 
 void TaskManager::callback_thread()
@@ -78,10 +81,16 @@ void TaskManager::callback_thread()
   laser_scan_sub_ = nh.subscribe(robot_name_ + "/scan", 1, &TaskManager::laser_scan_callback, this);
 
   // service client
+#ifndef TB3_MOBILE_MANIPULATION_MOVEIT
   goal_joint_space_path_client_ = nh.serviceClient<open_manipulator_msgs::SetJointPosition>(robot_name_ + "/goal_joint_space_path");
   goal_task_space_path_position_only_client_ = nh.serviceClient<open_manipulator_msgs::SetKinematicsPose>(robot_name_ + "/goal_task_space_path_position_only");
   goal_tool_control_client_ = nh.serviceClient<open_manipulator_msgs::SetJointPosition>(robot_name_ + "/goal_tool_control");
   set_actuator_state_client_ = nh.serviceClient<open_manipulator_msgs::SetActuatorState>(robot_name_ + "/set_actuator_state");
+#endif
+
+#ifdef TB3_MOBILE_MANIPULATION_MOVEIT
+
+#endif
 
   tf_listener_.reset( new tf::TransformListener());
 
@@ -249,6 +258,7 @@ void TaskManager::load_config(const std::string &path)
 
     // approach
     YAML::Node approach_node = doc["approach"];
+    approach_distance_ = approach_node["distance"].as<double>();
     approach_linear_vel_ = approach_node["linear_vel"].as<double>();
     approach_angular_vel_ = approach_node["angular_vel"].as<double>();
     approach_interval_sleep_ms_ = approach_node["interval_sleep_ms"].as<int>();
@@ -287,7 +297,7 @@ void TaskManager::publish_cmd_vel_msg(const geometry_msgs::Twist& msg)
   cmd_vel_pub_.publish(msg);
 }
 
-void TaskManager::publish_marker(bool clear, const std::vector<geometry_msgs::Pose2D>& pose_list)
+void TaskManager::publish_approach_marker(bool clear, const std::vector<geometry_msgs::Pose2D>& pose_list)
 {
   visualization_msgs::MarkerArray marker_array;
   ros::Time now = ros::Time::now();
@@ -449,6 +459,32 @@ void TaskManager::command_msg_callback(const std_msgs::String::ConstPtr& msg)
 
     else if(msg->data.find("find") != std::string::npos)
       look_around(msg->data);
+
+    else if(msg->data == "arm_home")
+      move_arm_joint("home_with_object");
+
+    else if(msg->data == "arm_joint")
+      move_arm_joint("via_pose");
+
+    else if(msg->data == "arm_task")
+    {
+      geometry_msgs::Point target;
+      target.x = 0.24;
+      target.y = 0.0;
+      target.z = 0.15;
+
+      move_arm_task(target);
+    }
+
+    else if(msg->data == "arm_task2")
+    {
+      geometry_msgs::Point target;
+      target.x = 0.24;
+      target.y = 0.0;
+      target.z = 0.2;
+
+      move_arm_task(target);
+    }
   }
 }
 

@@ -22,6 +22,10 @@ find_package(catkin REQUIRED COMPONENTS
   actionlib
   actionlib_msgs
   sensor_msgs
+  moveit_msgs
+  moveit_core
+  moveit_ros_planning
+  moveit_ros_planning_interface
 )
 
 ## System dependencies are found with CMake's conventions
@@ -136,7 +140,22 @@ endif(NOT ${YAML_CPP_VERSION} VERSION_LESS "0.5")
 catkin_package(
   INCLUDE_DIRS include
 #  LIBRARIES mobile_robot_manager
-CATKIN_DEPENDS roslib open_manipulator_msgs roscpp rospy turtlebot3_msgs geometry_msgs std_msgs move_base_msgs actionlib actionlib_msgs sensor_msgs
+  CATKIN_DEPENDS
+    roslib
+    open_manipulator_msgs
+    roscpp
+    rospy
+    turtlebot3_msgs
+    geometry_msgs
+    std_msgs
+    move_base_msgs
+    actionlib
+    actionlib_msgs
+    sensor_msgs
+    moveit_msgs
+    moveit_core
+    moveit_ros_planning
+    moveit_ros_planning_interface
 #  DEPENDS system_lib
 )
 
@@ -170,6 +189,10 @@ include_directories(
 add_executable(manager_node 
   src/manager_node.cpp
   src/task_manager.cpp
+  src/task_manager_core.cpp
+  src/task_manager_mobile.cpp
+  src/task_manager_manipulation.cpp
+  src/task_manager_manipulation_moveit.cpp
   src/service.cpp
 )
 

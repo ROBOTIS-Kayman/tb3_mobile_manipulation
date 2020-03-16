@@ -24,6 +24,72 @@ namespace tb3_mobile_manipulation
 // ========================================
 // ==========     Mobile
 // ========================================
+TASK::STATUS TaskManager::approach(const std::string &target_name, int repeat_number)
+{
+  bool continue_result;
+
+  for(int ix = 0; ix < repeat_number; ix++)
+  {
+    bool approach_result = approach_target(target_name, repeat_number, ix + 1);
+
+    if(approach_result == false)
+    {
+      // go back and find the target
+      // leave
+      leave_target("leave_back_inter");
+
+      continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+      if(continue_result == false)
+      {
+//        on_stop_task();
+        return TASK::STOP;
+      }
+
+      // wait 1 sec
+      boost::this_thread::sleep_for(boost::chrono::milliseconds(SLEEP_MS * 10));
+
+      // try again
+      approach_result = approach_target(target_name, repeat_number, ix + 1);
+
+      if(approach_result == false)
+      {
+        ROS_ERROR("Failed to approach");
+        return TASK::FAIL;
+      }
+    }
+
+    // wait for approaching
+    continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return TASK::STOP;;
+    }
+
+    // fail to apprach because of obstacle, try again
+    if(task_result_ == false)
+    {
+      task_result_ = true;
+      ix--;
+    }
+
+    if(ix == (repeat_number - 1))
+      break;
+
+    // leave
+    leave_target("leave_back_inter");
+
+    continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+    if(continue_result == false)
+    {
+      on_stop_task();
+      return TASK::STOP;;
+    }
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
 bool TaskManager::approach_target(const std::string &target_name)
 {
   return approach_target(target_name, 1, 1);
@@ -262,6 +328,20 @@ void TaskManager::approach_target_thread(const geometry_msgs::Pose2D& present_po
   is_running_sub_task_thread_ = false;
 }
 
+TASK::STATUS TaskManager::leave(double distance)
+{
+  leave_target(distance);
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+//        on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
 void TaskManager::leave_target(const std::string& command)
 {
   double leave_back_range = 0.25;
@@ -298,6 +378,17 @@ void TaskManager::leave_target(const std::string& command)
     moving_thread_ = new boost::thread(boost::bind(&TaskManager::leave_target_thread, this, approach_pose_list_.at(1), approach_pose_list_.at(0)));
     delete moving_thread_;
   }
+}
+
+void TaskManager::leave_target(double distance)
+{
+  publish_approach_marker(true, approach_pose_list_);
+
+  geometry_msgs::Pose2D pose_1, pose_2;
+  pose_2.x = -distance;
+
+  moving_thread_ = new boost::thread(boost::bind(&TaskManager::leave_target_thread, this, pose_1, pose_2));
+  delete moving_thread_;
 }
 
 void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose)
@@ -398,8 +489,24 @@ void TaskManager::leave_target_thread(const geometry_msgs::Pose2D &present_pose,
     publish_cmd_vel_msg(approach_msg);
   }
 
+  task_result_ = true;
   is_running_sub_task_thread_ = false;
 }
+
+TASK::STATUS TaskManager::turn(const geometry_msgs::Pose &target_pose)
+{
+   turn_to_target(target_pose);
+
+   bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+   if(continue_result == false)
+   {
+//     on_stop_task();
+     return TASK::STOP;
+   }
+
+   return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
 void TaskManager::turn_to_target(const std::string &target_name)
 {
   double target_yaw = 0.0;
@@ -470,6 +577,7 @@ void TaskManager::turn_to_target(const geometry_msgs::Pose &target_pose)
   if(result == false)
   {
     ROS_ERROR("Couldn't find the present footprint");
+    task_result_ = false;
     return;
   }
 
@@ -514,7 +622,10 @@ void TaskManager::turn_to_target_thread(double yaw)
   is_running_sub_task_thread_ = true;
 
   if(yaw == 0)
+  {
+    task_result_ = true;
     return;
+  }
 
   //  double linear_vel = -0.1;
   //    double angular_vel = 0.2;
@@ -541,15 +652,16 @@ void TaskManager::turn_to_target_thread(double yaw)
   approach_msg.angular.z = 0.0;
   publish_cmd_vel_msg(approach_msg);
 
+  task_result_ = true;
   is_running_sub_task_thread_ = false;
 }
 
-bool TaskManager::navigation(const std::string &target_name, bool recovery = false)
+TASK::STATUS TaskManager::navigation(const std::string &target_name, bool recovery = false)
 {
   return navigation(target_name, "", recovery);
 }
 
-bool TaskManager::navigation(const std::string &target_name, const std::string &real_target, bool recovery = false)
+TASK::STATUS TaskManager::navigation(const std::string &target_name, const std::string &real_target, bool recovery = false)
 {
   int sleep_ms = 100;
   int retry_times = 3;
@@ -569,7 +681,7 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
       if(continue_result == false)
       {
         cancel_nav();
-        return false;
+        return TASK::STOP;
       }
 
       // find object again
@@ -579,7 +691,7 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
       // nav to target again
       result = nav_to_target(target_name, real_target);
       if(result == false)
-        return false;
+        return TASK::FAIL;
     }
 
     // todo : timeout
@@ -587,9 +699,8 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
     if(continue_result == false)
     {
       cancel_nav();
-      return false;
+      return TASK::STOP;
     }
-
 
     // check distance
     if(real_target == "")
@@ -602,24 +713,24 @@ bool TaskManager::navigation(const std::string &target_name, const std::string &
         bool distance_result = check_distance(base_frame_id, target_name, max_distance);
 
         if(distance_result == true)
-          return true;
+          return TASK::SUCCESS;
       }
       else
-        return true;
+        return TASK::SUCCESS;
     }
     else
-      return true;
+      return TASK::SUCCESS;
   }
 
-  return false;
+  return TASK::FAIL;
 }
 
-bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, bool recovery = false)
+TASK::STATUS TaskManager::navigation(const geometry_msgs::Pose &target_pose, bool recovery = false)
 {
   return navigation(target_pose, "", recovery);
 }
 
-bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::string &real_target, bool recovery = false)
+TASK::STATUS TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::string &real_target, bool recovery = false)
 {
   int sleep_ms = 100;
   int retry_times = 3;
@@ -637,7 +748,7 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
       if(continue_result == false)
       {
         cancel_nav();
-        return false;
+        return TASK::STOP;
       }
 
       // find object again
@@ -647,7 +758,7 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
       // nav to target again
       result = nav_to_target(target_pose, real_target);
       if(result == false)
-        return false;
+        return TASK::FAIL;
     }
 
     // todo : timeout
@@ -655,7 +766,7 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
     if(continue_result == false)
     {
       cancel_nav();
-      return false;
+      return TASK::STOP;
     }
 
 
@@ -667,14 +778,14 @@ bool TaskManager::navigation(const geometry_msgs::Pose &target_pose, const std::
       bool distance_result = check_distance(base_frame_id, target_pose, max_distance);
 
       if(distance_result == true)
-        return true;
+        return TASK::SUCCESS;
     }
     else
-      return true;
+      return TASK::SUCCESS;
 
   }
 
-  return false;
+  return TASK::FAIL;
 }
 
 void TaskManager::cancel_nav()
@@ -713,7 +824,9 @@ bool TaskManager::nav_to_target(const std::string& target_name, const std::strin
 
         target_pose = nullptr;
 
-        return false;
+        task_result_ = false;
+
+        return true;
       }
 
       Eigen::Vector3d offset(0, 0, 0.35);
@@ -843,7 +956,6 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
   publish_goal_nav_msg(nav_msg);
 
   // wait for accept
-  //  while(navigation_status_ != move_base_msgs::MoveBaseActionResult::_status_type::ACTIVE)
   while(navigation_status_ != actionlib_msgs::GoalStatus::ACTIVE)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
 
@@ -862,23 +974,33 @@ void TaskManager::nav_to_target_thread(const geometry_msgs::Pose& target_pose, c
       if(distance_result == true)
       {
         cancel_nav();
+        task_result_ = true;
         break;
       }
-
-      //      bool result = get_target_pose(real_target, real_target_pose);
-      //      if(result == true)
-      //      {
-      //        cancel_nav();
-      //        break;
-      //      }
     }
 
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_ms));
   }
 
+  task_result_ = true;
+
   ROS_INFO_STREAM_COND(DEBUG, "Navigation is finished. : " << navigation_status_);
 
   is_running_sub_task_thread_ = false;
+}
+
+TASK::STATUS TaskManager::find_target(const std::string &target_name)
+{
+  look_around(target_name);
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+//    on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
 }
 
 void TaskManager::look_around(const std::string& target_name)
@@ -905,6 +1027,7 @@ void TaskManager::look_around_thread(int direction, const std::string& target_na
   }
 
   is_running_sub_task_thread_ = true;
+  task_result_ = false;
 
   double linear_vel = 0.0;
   double angular_vel = 0.5;
@@ -931,6 +1054,7 @@ void TaskManager::look_around_thread(int direction, const std::string& target_na
     if(get_target_pose(target_name, target_pose))
     {
       ROS_INFO("Success to find the target object");
+      task_result_ = true;
       break;
     }
     boost::this_thread::sleep_for(boost::chrono::milliseconds(sleep_time));

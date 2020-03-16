@@ -41,6 +41,49 @@ void TaskManager::init_manipulation()
   move_group2_ = new moveit::planning_interface::MoveGroupInterface(planning_group_name2);
 }
 
+
+TASK::STATUS TaskManager::manipulation_joint(const std::string &target_pose)
+{
+  move_arm_joint(target_pose);
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
+TASK::STATUS TaskManager::manipulation_task(const std::string &target_pose)
+{
+  move_arm_task(target_pose);
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
+TASK::STATUS TaskManager::manipulation_task(const geometry_msgs::Point& target_position)
+{
+  move_arm_task(target_position);
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
 void TaskManager::move_arm_joint(const std::string& target_pose)
 {
   auto find_it = arm_pose_list_.find(target_pose);
@@ -89,7 +132,6 @@ void TaskManager::move_arm_task(const geometry_msgs::Point &target_position)
 void TaskManager::move_arm_joint_space_thread(const std::vector<std::string>& joint_name, const std::vector<double>& joint_angle, double path_time)
 {
   is_running_sub_task_thread_ = true;
-  bool result;
   int interval_ms = 2000;
 
   // move
@@ -140,7 +182,6 @@ void TaskManager::move_arm_joint_space_thread(const std::vector<std::string>& jo
 void TaskManager::move_arm_task_space_thread(const geometry_msgs::Point& kinematics_position, double path_time)
 {
   is_running_sub_task_thread_ = true;
-  bool result;
   int interval_ms = 2000;
 
   //  ros::AsyncSpinner spinner(1);
@@ -217,6 +258,25 @@ void TaskManager::move_arm_task_space_thread(const geometry_msgs::Point& kinemat
   is_running_sub_task_thread_ = false;
 }
 
+TASK::STATUS TaskManager::gripper(bool open)
+{
+  ROS_WARN_STREAM("Gripper : " << (open ? "Open" : "Close"));
+
+  if(open)
+    open_gripper();
+  else
+    close_gripper();
+
+  bool continue_result = sleep_for(SLEEP_MS, SLEEP_MS * 10, is_running_sub_task_thread_, is_pause_, is_stop_);
+  if(continue_result == false)
+  {
+    on_stop_task();
+    return TASK::STOP;
+  }
+
+  return task_result_ ? TASK::SUCCESS : TASK::FAIL;
+}
+
 void TaskManager::open_gripper()
 {
   double gripper_position = 0.013;
@@ -241,8 +301,8 @@ void TaskManager::move_gripper_thread(double gripper_position)
   bool result;
   int moving_time = 1500;
 
-  ros::AsyncSpinner spinner(1);
-  spinner.start();
+//  ros::AsyncSpinner spinner(1);
+//  spinner.start();
 
   // Next get the current set of joint values for the group.
   const robot_state::JointModelGroup* joint_model_group =
@@ -269,9 +329,12 @@ void TaskManager::move_gripper_thread(double gripper_position)
     boost::this_thread::sleep_for(boost::chrono::milliseconds(moving_time));
   }
   else
+  {
     ROS_ERROR("Failed to plan for gripper");
+    task_result_ = false;
+  }
 
-  spinner.stop();
+//  spinner.stop();
   // check gripper status
 
   is_running_sub_task_thread_ = false;

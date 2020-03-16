@@ -64,6 +64,17 @@
 namespace tb3_mobile_manipulation
 {
 
+namespace TASK {
+enum STATUS
+{
+  SUCCESS = 0,
+  FAIL = 1,
+  PAUSE = 2,
+  STOP = 3,
+};
+
+}
+
 class TaskManager
 {
 public:
@@ -112,6 +123,7 @@ protected:
   // enum
 
   // const
+  const int SLEEP_MS = 100;
 
   // method
   void callback_thread();
@@ -135,26 +147,32 @@ protected:
   void finish_task_thread();
 
   void scenario_thread();
+  TASK::STATUS handle_scenario(const YAML::Node &current_scenario);
 
   // mobile
+  TASK::STATUS approach(const std::string &target_name, int repeat_number);
   bool approach_target(const std::string &target_name);
   bool approach_target(const std::string &target_name, int total_count, int present_count);
   void approach_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose, bool is_final_approach);
+  TASK::STATUS leave(double distance);
   void leave_target(const std::string &command);
+  void leave_target(double distance);
   void leave_target_thread(const geometry_msgs::Pose2D &present_pose, const geometry_msgs::Pose2D& target_pose);
+  TASK::STATUS turn(const geometry_msgs::Pose &target_pose);
   void turn_to_target(const std::string &target_name);
   void turn_to_target(const geometry_msgs::Pose &target_pose);
   void turn_to_target_thread(double yaw);
   void cancel_nav();
-  bool navigation(const std::string &target_name, bool recovery);
-  bool navigation(const std::string &target_name, const std::string& real_target, bool recovery);
-  bool navigation(const geometry_msgs::Pose &target_pose, bool recovery);
-  bool navigation(const geometry_msgs::Pose &target_pose, const std::string& real_target, bool recovery);
+  TASK::STATUS navigation(const std::string &target_name, bool recovery);
+  TASK::STATUS navigation(const std::string &target_name, const std::string& real_target, bool recovery);
+  TASK::STATUS navigation(const geometry_msgs::Pose &target_pose, bool recovery);
+  TASK::STATUS navigation(const geometry_msgs::Pose &target_pose, const std::string& real_target, bool recovery);
   bool nav_to_target(const std::string& target_name);
   bool nav_to_target(const geometry_msgs::Pose &target_pose);
   bool nav_to_target(const std::string& target_name, const std::string& real_target);
   bool nav_to_target(const geometry_msgs::Pose &target_pose, const std::string& real_target);
   void nav_to_target_thread(const geometry_msgs::Pose &target_pose, const std::string &real_target);
+  TASK::STATUS find_target(const std::string &target_name);
   void look_around(const std::string& target_name);
   void look_around_thread(int direction, const std::string& target_name);
   bool check_distance(const std::string& from, const std::string& to, double max_distance);
@@ -165,11 +183,15 @@ protected:
   // manipulation
 //  bool set_actuator_state(bool state);
   void init_manipulation();
+  TASK::STATUS manipulation_joint(const std::string &target_pose);
+  TASK::STATUS manipulation_task(const std::string &target_pose);
+  TASK::STATUS manipulation_task(const geometry_msgs::Point& target_position);
   void move_arm_joint(const std::string& target_pose);
   void move_arm_task(const std::string& target_pose);
   void move_arm_task(const geometry_msgs::Point& target_position);
   void move_arm_joint_space_thread(const std::vector<std::string>& joint_name, const std::vector<double>& joint_angle, double path_time);
   void move_arm_task_space_thread(const geometry_msgs::Point& kinematics_position, double path_time);
+  TASK::STATUS gripper(bool open);
   void open_gripper();
   void close_gripper();
   void move_gripper_thread(double gripper_position);
@@ -224,6 +246,9 @@ protected:
   boost::shared_ptr<tf::TransformListener> tf_listener_;
   std::map<std::string, Service*> room_service_list_;
   std::map<std::string, std::map<std::string, double>> arm_pose_list_;
+
+  //scenario
+  geometry_msgs::Pose last_pose_;
 
   // MoveIt! interface
   moveit::planning_interface::MoveGroupInterface* move_group_;
